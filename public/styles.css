@@ -64,20 +64,13 @@ button { font: inherit; color: inherit; }
 /* ---------- Céu ---------- */
 
 /*
- * No PWA do iOS com status bar translúcida, a viewport é calculada sem a área da status bar
- * mas o conteúdo começa no topo da tela — sobra uma faixa preta embaixo. O fundo vaza para
- * além das bordas para cobrir essa faixa (elementos fixed não geram rolagem).
+ * No PWA do iOS com status bar translúcida, a viewport fica mais curta que a tela e o iOS
+ * corta elementos fixed nela; a sobra embaixo é pintada com o fundo do <html>. Por isso o
+ * céu termina exatamente na cor --bg: a emenda com essa sobra fica invisível.
  */
-.sky,
-.grain {
-  top: calc(-1 * env(safe-area-inset-top, 0px));
-  bottom: calc(-1 * (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
-  left: 0;
-  right: 0;
-}
-
 .sky {
   position: fixed;
+  inset: 0;
   overflow: hidden;
   pointer-events: none;
   background:
@@ -88,8 +81,29 @@ button { font: inherit; color: inherit; }
     radial-gradient(1px 1px at 90% 34%, rgba(255,255,255,.3), transparent 60%),
     radial-gradient(1px 1px at 22% 40%, rgba(255,255,255,.25), transparent 60%),
     radial-gradient(1.4px 1.4px at 47% 14%, rgba(255,255,255,.5), transparent 60%),
-    radial-gradient(120% 70% at 50% 110%, #0b1024 0%, transparent 60%),
+    radial-gradient(120% 50% at 50% 70%, #0b1024 0%, transparent 60%),
     linear-gradient(180deg, #05060d 0%, #04050a 100%);
+}
+
+/* Topo: véu leve para status bar e cabeçalho lerem nítidos sobre a aurora. */
+.sky::before,
+.sky::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+}
+.sky::before {
+  top: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 96px);
+  background: linear-gradient(180deg, rgba(4, 5, 10, .62) 0%, rgba(4, 5, 10, .32) 55%, rgba(4, 5, 10, 0) 100%);
+}
+/* Base: dissolve em --bg exato, sem emenda com a área que o iOS pinta por fora. */
+.sky::after {
+  bottom: 0;
+  height: 34vh;
+  background: linear-gradient(180deg, rgba(4, 5, 10, 0) 0%, rgba(4, 5, 10, .85) 60%, #04050a 100%);
 }
 
 .band {
@@ -126,6 +140,7 @@ button { font: inherit; color: inherit; }
 
 .grain {
   position: fixed;
+  inset: 0;
   pointer-events: none;
   opacity: .07;
   mix-blend-mode: overlay;
@@ -181,7 +196,12 @@ button { font: inherit; color: inherit; }
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.brand-icon { border-radius: 7px; display: block; }
+.brand { text-shadow: 0 1px 10px rgba(4, 5, 10, .45); }
+.brand-icon {
+  display: block;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, .12), 0 4px 12px rgba(0, 0, 0, .35);
+}
 
 .icon-btn {
   width: 36px; height: 36px;

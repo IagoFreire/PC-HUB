@@ -29,7 +29,21 @@
   <main class="app">
     <header class="top">
       <div class="brand">
-        <img class="brand-icon" src="icons/icon.svg" alt="" width="26" height="26">
+        <!-- versão simplificada do ícone: sem brilho nem névoa, nítida em 26 px -->
+        <svg class="brand-icon" viewBox="0 0 26 26" width="26" height="26" aria-hidden="true">
+          <defs>
+            <linearGradient id="brandStroke" gradientUnits="userSpaceOnUse" x1="7" y1="6" x2="19" y2="21">
+              <stop offset="0" stop-color="#6af5c6" />
+              <stop offset=".5" stop-color="#4cc3ff" />
+              <stop offset="1" stop-color="#b799ff" />
+            </linearGradient>
+          </defs>
+          <rect width="26" height="26" rx="7" fill="#0a0f24" />
+          <g fill="none" stroke="url(#brandStroke)" stroke-width="2.3" stroke-linecap="round">
+            <path d="M16.9 9.2a6 6 0 1 1-7.8 0" />
+            <path d="M13 6.2v6.3" />
+          </g>
+        </svg>
         <span>Aurora</span>
       </div>
       <button class="icon-btn" id="settingsBtn" type="button" aria-label="Ajustes">
