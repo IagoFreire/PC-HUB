@@ -1,5 +1,5 @@
 // Mantém a casca do app disponível offline. A API nunca é cacheada.
-const CACHE = 'aurora-v14';
+const CACHE = 'aurora-v15';
 const SHELL = [
   './',
   'index.html',

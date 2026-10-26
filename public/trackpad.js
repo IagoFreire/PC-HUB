@@ -1,5 +1,5 @@
 // Trackpad e teclado: gestos na tela do celular viram mouse e teclado no PC (via WebSocket).
-import { gravitySignFor, MAX_MOTION_DT_S, motionToCursor } from './air-mouse.js';
+import { MAX_MOTION_DT_S, motionToCursor, rotationLayoutFor } from './air-mouse.js';
 
 const TAP_MAX_MS = 220;
 const TWO_FINGER_TAP_MAX_MS = 320;
@@ -16,7 +16,7 @@ const SHEET_FALLBACK_MS = 600;
 const KEYBOARD_SENTINEL = ' ';
 const MAX_ECHO_CHARS = 120;
 const MOTION_CHECK_MS = 1500;
-const GRAVITY_SIGN = gravitySignFor(globalThis.DeviceMotionEvent);
+const ROTATION_LAYOUT = rotationLayoutFor(globalThis.DeviceMotionEvent);
 
 const HARDWARE_KEYS = Object.freeze({
   Enter: 'enter',
@@ -266,7 +266,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
     const dt = lastMotionAt ? Math.min((now - lastMotionAt) / 1000, MAX_MOTION_DT_S) : 0;
     lastMotionAt = now;
     if (!airClutch) return;
-    const { dx, dy } = motionToCursor(event.rotationRate, event.accelerationIncludingGravity, dt, GRAVITY_SIGN);
+    const { dx, dy } = motionToCursor(event.rotationRate, event.accelerationIncludingGravity, dt, ROTATION_LAYOUT);
     if (dx || dy) queue('m', dx, dy);
   }
 
