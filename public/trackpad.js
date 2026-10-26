@@ -13,6 +13,7 @@ const RECONNECT_MS = 1500;
 const RECONNECT_AFTER_ERROR_MS = 4000;
 const SHEET_FALLBACK_MS = 600;
 const KEYBOARD_SENTINEL = ' ';
+const MAX_ECHO_CHARS = 120;
 
 const HARDWARE_KEYS = Object.freeze({
   Enter: 'enter',
@@ -43,6 +44,8 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     kbdBtn: $('padKbdBtn'),
     keyRow: $('padKeyRow'),
     input: $('padInput'),
+    echo: $('padEcho'),
+    echoText: $('padEchoText'),
   };
 
   let ws = null;
@@ -269,6 +272,32 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
 
   /* ---------- Teclado ---------- */
 
+  // Prévia local do que foi digitado: é o que VOCÊ mandou, não o texto real do PC.
+  let echo = '';
+
+  function setEcho(next) {
+    echo = next.slice(-MAX_ECHO_CHARS);
+    el.echoText.textContent = echo;
+    el.echo.classList.toggle('is-empty', echo === '');
+    // Centralizado enquanto cabe; quando passa da largura, alinha pelo fim para mostrar o que acabou de ser digitado.
+    const caretWidth = el.echo.lastElementChild.offsetWidth;
+    el.echo.classList.toggle('is-overflowing', el.echoText.offsetWidth + caretWidth > el.echo.clientWidth);
+  }
+
+  function typeText(text) {
+    send({ t: 'k', text });
+    // Texto colado com várias linhas: a prévia mostra só a última.
+    const lines = text.split(/\r\n|\r|\n/);
+    setEcho(lines.length > 1 ? lines.at(-1) : echo + text);
+  }
+
+  function pressKey(key) {
+    send({ t: 'key', k: key });
+    if (key === 'backspace') setEcho([...echo].slice(0, -1).join(''));
+    else if (key === 'enter') setEcho('');
+    else if (key === 'tab') setEcho(`${echo}⇥`);
+  }
+
   // Um caractere fixo no campo garante que o iOS sempre dispare "apagar", mesmo sem texto.
   function resetInput() {
     el.input.value = KEYBOARD_SENTINEL;
@@ -286,6 +315,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
   });
 
   el.input.addEventListener('focus', () => {
+    setEcho('');
     el.view.classList.add('kbd-open');
     el.keyRow.hidden = false;
     el.kbdBtn.setAttribute('aria-pressed', 'true');
@@ -305,17 +335,17 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
       case 'insertText':
       case 'insertReplacementText':
       case 'insertFromPaste':
-        if (text) send({ t: 'k', text });
+        if (text) typeText(text);
         break;
       case 'insertLineBreak':
       case 'insertParagraph':
-        send({ t: 'key', k: 'enter' });
+        pressKey('enter');
         break;
       case 'deleteContentBackward':
-        send({ t: 'key', k: 'backspace' });
+        pressKey('backspace');
         break;
       case 'deleteContentForward':
-        send({ t: 'key', k: 'delete' });
+        pressKey('delete');
         break;
       default:
         break;
@@ -325,7 +355,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
 
   // Acentos montados por composição (teclados de outros idiomas) chegam aqui no fim.
   el.input.addEventListener('compositionend', (event) => {
-    if (event.data) send({ t: 'k', text: event.data });
+    if (event.data) typeText(event.data);
     resetInput();
   });
 
@@ -333,12 +363,12 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     const key = HARDWARE_KEYS[event.key];
     if (!key || event.isComposing) return;
     event.preventDefault();
-    send({ t: 'key', k: key });
+    pressKey(key);
   });
 
   for (const keyBtn of el.keyRow.querySelectorAll('[data-key]')) {
     const fire = () => {
-      send({ t: 'key', k: keyBtn.dataset.key });
+      pressKey(keyBtn.dataset.key);
       haptic('tap');
     };
     // preventDefault no toque mantém o foco no campo, então o teclado do iPhone não fecha.

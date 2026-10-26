@@ -194,6 +194,55 @@
 .pad-hint b { font-weight: 600; color: var(--ink-2); }
 .pad-view.kbd-open .pad-hint { opacity: 0; }
 
+/* Prévia do que está sendo digitado (só com o teclado aberto). Mostra o fim da linha atual. */
+.pad-echo {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 1.5em;
+  margin: 0;
+  overflow: hidden;
+  transform: translateY(-50%);
+  font-size: clamp(20px, 6vw, 26px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  pointer-events: none;
+}
+.pad-view.kbd-open .pad-echo { display: flex; }
+/* Linha maior que a superfície: mostra o final e esmaece o começo cortado. */
+.pad-echo.is-overflowing {
+  justify-content: flex-end;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px);
+  mask-image: linear-gradient(90deg, transparent, #000 36px);
+}
+
+.pad-echo-text { flex: none; white-space: pre; }
+
+.pad-caret {
+  flex: none;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: var(--aurora-cyan);
+  box-shadow: 0 0 8px rgba(76, 195, 255, .7);
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret { 50% { opacity: 0; } }
+
+.pad-echo.is-empty .pad-caret { display: none; }
+.pad-echo.is-empty .pad-echo-text::before {
+  content: "Digite para enviar ao PC";
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
 /* Teclas especiais (aparecem junto com o teclado) */
 .pad-keys {
   display: grid;
