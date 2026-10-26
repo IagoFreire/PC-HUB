@@ -3,6 +3,10 @@ import { HttpError } from './http-error.js';
 import { sendMagicPacket } from './wol.js';
 
 const PROBE_TIMEOUT_MS = 1500;
+// O agente só responde depois que o shutdown.exe confirma; isso passa fácil de 1,5 s.
+const POWER_TIMEOUT_MS = 10_000;
+// Erros em que o comando já saiu e a resposta se perdeu (ex.: o Windows derrubou a conexão ao desligar).
+const UNCONFIRMED_CODES = new Set(['ECONNRESET', 'EPIPE', 'UND_ERR_SOCKET']);
 const CACHE_MS = 1500;
 const WAKE_WINDOW_MS = 3 * 60_000;
 const SHUTDOWN_WINDOW_MS = 2 * 60_000;
@@ -30,6 +34,12 @@ export function ping(ip, timeoutMs = PROBE_TIMEOUT_MS) {
   });
 }
 
+/** O comando pode ter sido executado mesmo sem resposta: timeout ou conexão cortada no meio. */
+export function commandMayHaveRun(err) {
+  if (err?.name === 'TimeoutError' || err?.name === 'AbortError') return true;
+  return UNCONFIRMED_CODES.has(err?.cause?.code ?? err?.code);
+}
+
 function nextPending(pending, { online, uptimeSec }, at) {
   if (!pending || at > pending.until) return null;
   if (pending.kind === 'waking' && online) return null;
@@ -54,7 +64,7 @@ export function createPcMonitor({
   let lastSeenAt = null;
   let pending = null;
 
-  function callAgent(path, { method = 'GET', body } = {}) {
+  function callAgent(path, { method = 'GET', body, timeoutMs = PROBE_TIMEOUT_MS } = {}) {
     return fetchImpl(`http://${pc.ip}:${pc.agentPort}${path}`, {
       method,
       headers: {
@@ -62,7 +72,7 @@ export function createPcMonitor({
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   }
 
@@ -130,10 +140,23 @@ export function createPcMonitor({
       throw new HttpError(400, `Ação inválida. Use: ${POWER_ACTIONS.join(', ')}`);
     }
 
+    const markPending = () => {
+      pending = {
+        kind: action === 'restart' ? 'restarting' : 'shutting-down',
+        until: now() + SHUTDOWN_WINDOW_MS,
+        uptimeBefore: snapshot?.uptimeSec ?? null,
+      };
+    };
+
     let res;
     try {
-      res = await callAgent('/power', { method: 'POST', body: { action } });
-    } catch {
+      res = await callAgent('/power', { method: 'POST', body: { action }, timeoutMs: POWER_TIMEOUT_MS });
+    } catch (err) {
+      if (commandMayHaveRun(err)) {
+        // Sem confirmação, mas provavelmente executou; o monitoramento confirma se o PC caiu.
+        markPending();
+        return { action, confirmed: false };
+      }
       throw new HttpError(502, 'Não consegui falar com o agente no PC. Ele está ligado e com o agente instalado?');
     }
     if (res.status === 401) {
@@ -143,12 +166,8 @@ export function createPcMonitor({
       throw new HttpError(502, `O agente recusou o comando (HTTP ${res.status}).`);
     }
 
-    pending = {
-      kind: action === 'restart' ? 'restarting' : 'shutting-down',
-      until: now() + SHUTDOWN_WINDOW_MS,
-      uptimeBefore: snapshot?.uptimeSec ?? null,
-    };
-    return { action };
+    markPending();
+    return { action, confirmed: true };
   }
 
   return Object.freeze({ getStatus, wake, power });

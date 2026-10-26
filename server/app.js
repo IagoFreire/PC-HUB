@@ -63,8 +63,10 @@ export function createApp({ config, monitor, publicDir, log = defaultLog }) {
     },
     'POST /api/power': async (req) => {
       const action = (await readJson(req))?.action;
-      await monitor.power(action);
-      log(`comando "${action}" enviado ao agente`);
+      const result = await monitor.power(action);
+      log(result?.confirmed === false
+        ? `comando "${action}" enviado, sem confirmação do agente (provavelmente já desligando)`
+        : `comando "${action}" enviado ao agente`);
       return [202, { ok: true, action }];
     },
   };

@@ -14,7 +14,8 @@ function harness({ agent = 'ok', pingAlive = false } = {}) {
 
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
-    if (world.agent === 'down') throw new Error('ECONNREFUSED');
+    if (world.powerError && url.endsWith('/power')) throw world.powerError;
+    if (world.agent === 'down') throw new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } });
     if (world.agent === 'unauthorized') return new Response('{}', { status: 401 });
     if (url.endsWith('/health')) return Response.json({ ok: true, uptimeSec: world.uptime, hostname: 'DESKTOP' });
     return Response.json({ ok: true }, { status: 202 });
@@ -128,6 +129,27 @@ test('restart rápido demais para ver offline é detectado pelo uptime menor', a
   world.uptime = 15;
   tick(2000);
   assert.equal((await monitor.getStatus()).pending, null);
+});
+
+test('shutdown sem resposta por timeout conta como enviado e fica "shutting-down"', async () => {
+  const { monitor, world } = harness();
+  world.powerError = new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+
+  const result = await monitor.power('shutdown');
+  assert.equal(result.confirmed, false);
+  assert.equal((await monitor.getStatus()).pending, 'shutting-down');
+});
+
+test('shutdown com conexão cortada pelo Windows conta como enviado', async () => {
+  const { monitor, world } = harness();
+  world.powerError = new TypeError('fetch failed', { cause: { code: 'UND_ERR_SOCKET' } });
+  assert.equal((await monitor.power('shutdown')).confirmed, false);
+});
+
+test('comando confirmado pelo agente vem com confirmed: true e timeout longo', async () => {
+  const { monitor, calls } = harness();
+  assert.equal((await monitor.power('shutdown')).confirmed, true);
+  assert.ok(calls.find((c) => c.url.endsWith('/power')).init.signal instanceof AbortSignal);
 });
 
 test('power rejeita ação desconhecida com 400', async () => {
