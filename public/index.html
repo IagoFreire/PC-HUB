@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#04050a">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aurora">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="Ligue, desligue e acompanhe seu PC de qualquer lugar da casa.">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>Aurora</title>
+</head>
+<body data-state="unknown">
+  <div class="sky" aria-hidden="true">
+    <span class="band band-a"></span>
+    <span class="band band-b"></span>
+    <span class="band band-c"></span>
+    <span class="band band-warm"></span>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main class="app">
+    <header class="top">
+      <div class="brand">
+        <img class="brand-icon" src="icons/icon.svg" alt="" width="26" height="26">
+        <span>Aurora</span>
+      </div>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+        </svg>
+      </button>
+    </header>
+
+    <section class="hero" aria-live="polite">
+      <p class="eyebrow" id="pcName">&nbsp;</p>
+      <h1 class="status" id="statusText">Verificando…</h1>
+      <p class="detail" id="statusDetail">&nbsp;</p>
+    </section>
+
+    <div class="orb-stage">
+      <button class="orb" id="powerBtn" type="button" aria-label="Verificando o PC">
+        <span class="orb-halo" aria-hidden="true"></span>
+        <svg class="orb-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringAurora" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#5ef2c0" />
+              <stop offset=".5" stop-color="#4cc3ff" />
+              <stop offset="1" stop-color="#b294ff" />
+            </linearGradient>
+            <linearGradient id="ringWarm" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ffb35c" />
+              <stop offset="1" stop-color="#ff5a7a" />
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="110" cy="110" r="104" />
+          <circle class="ring-full" cx="110" cy="110" r="104" />
+          <circle class="ring-arc ring-arc-aurora" cx="110" cy="110" r="104" />
+          <circle class="ring-arc ring-arc-warm" cx="110" cy="110" r="104" />
+        </svg>
+        <span class="orb-core" aria-hidden="true">
+          <svg class="power-glyph" viewBox="0 0 48 48">
+            <path d="M15.5 13.2a15 15 0 1 0 17 0" />
+            <path d="M24 7v16" />
+          </svg>
+        </span>
+      </button>
+      <p class="hint" id="hint">&nbsp;</p>
+    </div>
+
+    <section class="card" aria-label="Detalhes do PC">
+      <dl class="rows">
+        <div class="row"><dt>Endereço</dt><dd id="ipVal">—</dd></div>
+        <div class="row"><dt id="timeLabel">Ligado há</dt><dd id="timeVal">—</dd></div>
+        <div class="row"><dt>Agente</dt><dd id="agentVal"><span class="dot"></span><span>—</span></dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <!-- Confirmação de desligar/reiniciar -->
+  <div class="sheet-layer" id="powerSheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="powerSheetTitle">
+      <div class="sheet-group">
+        <div class="sheet-head">
+          <p class="sheet-title" id="powerSheetTitle">Desligar o PC?</p>
+          <p class="sheet-msg" id="powerSheetMsg">Programas abertos serão fechados em 5 segundos.</p>
+        </div>
+        <button class="sheet-btn danger" type="button" data-action="shutdown">Desligar</button>
+        <button class="sheet-btn" type="button" data-action="restart">Reiniciar</button>
+      </div>
+      <button class="sheet-btn sheet-cancel" type="button" data-close>Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Ajustes -->
+  <div class="sheet-layer" id="settingsSheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="sheet-group">
+        <div class="sheet-head">
+          <p class="sheet-title" id="settingsTitle">Aurora</p>
+          <p class="sheet-msg" id="settingsMsg">—</p>
+        </div>
+        <button class="sheet-btn" type="button" id="refreshBtn">Atualizar agora</button>
+        <button class="sheet-btn danger" type="button" id="logoutBtn">Esquecer código de acesso</button>
+      </div>
+      <button class="sheet-btn sheet-cancel" type="button" data-close>Fechar</button>
+    </div>
+  </div>
+
+  <!-- Pareamento -->
+  <div class="gate" id="gate" hidden>
+    <form class="gate-card" id="gateForm" autocomplete="on">
+      <img class="gate-icon" src="icons/icon-192.png" alt="" width="84" height="84">
+      <h2 class="gate-title">Bem-vindo à Aurora</h2>
+      <p class="gate-sub">Digite o código de acesso que está no <code>config.json</code> do servidor.</p>
+      <label class="field">
+        <span class="sr-only">Código de acesso</span>
+        <input id="tokenInput" name="password" type="password" inputmode="text" autocapitalize="characters"
+               autocomplete="current-password" spellcheck="false" placeholder="XXXX-XXXX-XXXX" required>
+      </label>
+      <p class="gate-error" id="gateError" role="alert"></p>
+      <button class="cta" type="submit" id="gateSubmit">Entrar</button>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

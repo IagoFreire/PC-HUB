@@ -1,0 +1,12 @@
+{
+  "port": 8080,
+  "accessToken": "TROQUE-ESTE-CODIGO",
+  "pc": {
+    "name": "Meu PC",
+    "mac": "AA:BB:CC:DD:EE:FF",
+    "ip": "192.168.0.10",
+    "broadcast": "192.168.0.255",
+    "agentPort": 7777,
+    "agentSecret": "um-segredo-longo-com-pelo-menos-16-caracteres"
+  }
+}

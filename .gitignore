@@ -1,0 +1,4 @@
+config.json
+node_modules/
+agent/agent.secret
+agent/agent.log*

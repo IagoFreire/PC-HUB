@@ -1,0 +1,16 @@
+{
+  "name": "aurora",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aurora — ligue, desligue e acompanhe seu PC pelo iPhone (Wake-on-LAN + PWA).",
+  "type": "module",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "icons": "python tools/render-icons.py"
+  }
+}
