@@ -36,7 +36,10 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
 
 body {
   margin: 0;
@@ -60,9 +63,21 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Céu ---------- */
 
+/*
+ * No PWA do iOS com status bar translúcida, a viewport é calculada sem a área da status bar
+ * mas o conteúdo começa no topo da tela — sobra uma faixa preta embaixo. O fundo vaza para
+ * além das bordas para cobrir essa faixa (elementos fixed não geram rolagem).
+ */
+.sky,
+.grain {
+  top: calc(-1 * env(safe-area-inset-top, 0px));
+  bottom: calc(-1 * (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  left: 0;
+  right: 0;
+}
+
 .sky {
   position: fixed;
-  inset: 0;
   overflow: hidden;
   pointer-events: none;
   background:
@@ -111,7 +126,6 @@ button { font: inherit; color: inherit; }
 
 .grain {
   position: fixed;
-  inset: 0;
   pointer-events: none;
   opacity: .07;
   mix-blend-mode: overlay;
