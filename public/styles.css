@@ -626,6 +626,59 @@ button { font: inherit; color: inherit; }
   .orb-stage { gap: 14px; padding: 14px 0; }
 }
 
+/* ---------- Celular na horizontal ---------- */
+/* Só telas baixas: iPad e computador continuam com o layout em coluna. */
+
+@media (orientation: landscape) and (max-height: 540px) {
+  :root { --orb: min(56vh, 210px); }
+
+  .app {
+    max-width: 920px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "top  top"
+      "orb  hero"
+      "orb  card";
+    column-gap: clamp(20px, 5vw, 48px);
+    /* Na horizontal o iPhone esconde a status bar: o topo não precisa de folga extra. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px);
+  }
+
+  .top { grid-area: top; height: 40px; }
+
+  .hero {
+    grid-area: hero;
+    align-self: end;
+    padding-top: 0;
+    text-align: left;
+  }
+  .status { font-size: clamp(30px, 8vh, 38px); }
+  .detail { margin-top: 4px; }
+
+  .orb-stage {
+    grid-area: orb;
+    gap: 12px;
+    padding: 4px 0;
+  }
+
+  .card {
+    grid-area: card;
+    align-self: start;
+    margin-top: 10px;
+  }
+  .row { min-height: 38px; }
+
+  /* Login compacto */
+  .gate { padding: 12px 24px; overflow-y: auto; }
+  .gate-icon { width: 56px; height: 56px; border-radius: 14px; }
+  .gate-title { margin: 10px 0 4px; font-size: 22px; }
+  .gate-sub { margin-bottom: 14px; font-size: 14px; }
+  .field input,
+  .cta { height: 46px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -55,8 +55,15 @@
   top: var(--pad-top, 0px);
   height: var(--pad-h, 100dvh);
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
-  gap: 12px;
+  /* Áreas nomeadas: a linha das teclas só existe com o teclado aberto (senão o gap entra duas vezes). */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head"
+    "status"
+    "surface"
+    "buttons";
+  --pad-gap: 12px;
+  gap: var(--pad-gap);
   max-width: 560px;
   margin: 0 auto;
   padding:
@@ -75,7 +82,20 @@
 .pad-view[hidden] { display: none; }
 .pad-view.is-open { transform: none; }
 /* Com o teclado aberto, ele já cobre a área segura de baixo. */
-.pad-view.kbd-open { padding-bottom: 8px; }
+.pad-view.kbd-open {
+  padding-bottom: 8px;
+  grid-template-areas:
+    "head"
+    "status"
+    "surface"
+    "keys";
+}
+
+.pad-head { grid-area: head; }
+.pad-status { grid-area: status; }
+.pad-surface { grid-area: surface; }
+.pad-keys { grid-area: keys; }
+.pad-buttons { grid-area: buttons; }
 
 .pad-head {
   display: grid;
@@ -158,6 +178,8 @@
   pointer-events: none;
 }
 .pad-surface.is-touching::after { opacity: 1; }
+/* Com os botões à mostra, superfície e botões formam uma peça só (cantos de baixo nos botões). */
+.pad-view:not(.kbd-open) .pad-surface { border-radius: 28px 28px 0 0; }
 
 .pad-hint {
   margin: 0;
@@ -195,19 +217,20 @@
 }
 .pad-key:active { background: rgba(255, 255, 255, .22); transform: scale(.94); }
 
-/* Botões esquerdo/direito, como os de um notebook */
+/* Botões esquerdo/direito colados na superfície, separados só por uma linha fina, como num notebook. */
 .pad-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 1px;
+  margin-top: calc(1px - var(--pad-gap));
 }
 .pad-view.kbd-open .pad-buttons { display: none; }
 
 .pad-btn {
-  height: 60px;
+  height: 76px;
   border: 0;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, .045);
+  border-radius: 0;
+  background: rgba(255, 255, 255, .055);
   box-shadow: inset 0 0 0 0.5px var(--hairline);
   color: var(--ink-3);
   font-size: 12px;
@@ -218,10 +241,68 @@
   cursor: pointer;
   transition: background var(--fast) ease, transform var(--fast) ease, color var(--fast) ease;
 }
+.pad-btn:first-child { border-bottom-left-radius: 28px; }
+.pad-btn:last-child { border-bottom-right-radius: 28px; }
 .pad-btn.is-pressed {
   background: rgba(111, 211, 255, .17);
   color: var(--link);
   transform: scale(.98);
+}
+
+/* ---------- Celular na horizontal ---------- */
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .card-action { min-height: 42px; }
+
+  /* Como um trackpad de verdade: superfície em cima, botões embaixo em toda a largura.
+     O status sobe para o centro do cabeçalho (no lugar do título) para sobrar altura. */
+  .pad-view {
+    max-width: none;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head"
+      "surface"
+      "buttons";
+    --pad-gap: 8px;
+    row-gap: var(--pad-gap);
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 6px)
+      calc(env(safe-area-inset-right, 0px) + 14px)
+      max(env(safe-area-inset-bottom, 0px), 10px)
+      calc(env(safe-area-inset-left, 0px) + 14px);
+  }
+
+  .pad-head { grid-area: head; height: 38px; }
+  .pad-title { visibility: hidden; }
+  .pad-surface { grid-area: surface; min-height: 0; }
+  .pad-keys { grid-area: keys; }
+  .pad-buttons { grid-area: buttons; }
+  .pad-btn { height: 58px; }
+
+  .pad-status {
+    position: absolute;
+    z-index: 1;
+    top: calc(env(safe-area-inset-top, 0px) + 6px);
+    left: 50%;
+    max-width: min(560px, 60%);
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  /* Teclado aberto cobre metade da tela: só cabeçalho, superfície e teclas especiais. */
+  .pad-view.kbd-open {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head"
+      "surface"
+      "keys";
+    row-gap: 6px;
+  }
+  .pad-view.kbd-open .pad-status { display: none; }
+  .pad-view.kbd-open .pad-head { height: 34px; }
+  .pad-view.kbd-open .pad-key { height: 36px; }
 }
 
 /* Campo que recebe o teclado do iPhone: invisível, mas focável (16px evita o zoom do iOS). */
