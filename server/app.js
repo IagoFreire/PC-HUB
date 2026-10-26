@@ -2,21 +2,43 @@ import http from 'node:http';
 import { createAuthGuard } from './auth.js';
 import { HttpError } from './http-error.js';
 import { serveStatic } from './static.js';
+import { handleTouchConnection } from './touch.js';
+import { acceptWebSocket } from './websocket.js';
 
 const MAX_BODY_BYTES = 1024;
 
-const SECURITY_HEADERS = Object.freeze({
-  'Content-Security-Policy': [
+const MAX_TOUCH_CLIENTS = 8;
+// Conexões que ainda não mandaram o código: poucas por IP, para ninguém esgotar as vagas do celular.
+const MAX_PENDING_TOUCH_PER_IP = 2;
+const SAFE_HOST_RE = /^[a-z0-9.\-:[\]]+$/i;
+
+/** CSP por requisição: o Safari não considera ws:// coberto por 'self', então o host vai explícito. */
+function contentSecurityPolicy(host) {
+  const sockets = host && SAFE_HOST_RE.test(host) ? ` ws://${host} wss://${host}` : '';
+  return [
     "default-src 'self'",
     "img-src 'self' data:",
     "style-src 'self'",
     "script-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self'${sockets}`,
     "manifest-src 'self'",
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-  ].join('; '),
+  ].join('; ');
+}
+
+function isSameOrigin(req) {
+  const { origin } = req.headers;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+
+const SECURITY_HEADERS = Object.freeze({
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'no-referrer',
@@ -49,9 +71,9 @@ async function readJson(req) {
   }
 }
 
-const defaultLog = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
+export const defaultLog = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
 
-export function createApp({ config, monitor, publicDir, log = defaultLog }) {
+export function createApp({ config, monitor, publicDir, touch = null, log = defaultLog }) {
   const guard = createAuthGuard(config.accessToken);
 
   const routes = {
@@ -90,6 +112,7 @@ export function createApp({ config, monitor, publicDir, log = defaultLog }) {
 
   async function handle(req, res) {
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+    res.setHeader('Content-Security-Policy', contentSecurityPolicy(req.headers.host));
     const { pathname } = new URL(req.url, 'http://local');
 
     if (pathname.startsWith('/api/')) {
@@ -102,7 +125,7 @@ export function createApp({ config, monitor, publicDir, log = defaultLog }) {
     throw new HttpError(404, 'Não encontrado.');
   }
 
-  return http.createServer((req, res) => {
+  const server = http.createServer((req, res) => {
     handle(req, res).catch((err) => {
       const status = err instanceof HttpError ? err.status : 500;
       if (status === 500) log(`erro interno em ${req.method} ${req.url}: ${err.stack ?? err}`);
@@ -113,4 +136,50 @@ export function createApp({ config, monitor, publicDir, log = defaultLog }) {
       sendJson(res, status, { error: status === 500 ? 'Erro interno do servidor.' : err.message });
     });
   });
+
+  let touchClients = 0;
+  const pendingByIp = new Map();
+  const changePending = (ip, delta) => {
+    const next = (pendingByIp.get(ip) ?? 0) + delta;
+    if (next > 0) pendingByIp.set(ip, next);
+    else pendingByIp.delete(ip);
+  };
+
+  server.on('upgrade', (req, socket) => {
+    socket.on('error', () => socket.destroy());
+    const reject = (status) => socket.end(`HTTP/1.1 ${status} ${http.STATUS_CODES[status]}\r\nConnection: close\r\n\r\n`);
+    const { pathname } = new URL(req.url, 'http://local');
+
+    if (pathname !== '/api/touch') return reject(404);
+    const client = req.socket.remoteAddress ?? 'unknown';
+    if (!touch || touchClients >= MAX_TOUCH_CLIENTS) return reject(503);
+    if ((pendingByIp.get(client) ?? 0) >= MAX_PENDING_TOUCH_PER_IP) return reject(429);
+    // Impede que outro site aberto no celular use o WebSocket (cross-site WebSocket hijacking).
+    if (!isSameOrigin(req)) return reject(403);
+
+    const ws = acceptWebSocket(req, socket);
+    if (!ws) return undefined;
+    touchClients += 1;
+    changePending(client, +1);
+    let pending = true;
+    const settlePending = () => {
+      if (!pending) return;
+      pending = false;
+      changePending(client, -1);
+    };
+    ws.on('close', () => {
+      touchClients -= 1;
+      settlePending();
+    });
+
+    handleTouchConnection(ws, {
+      authenticate: (token) => guard.check(client, `Bearer ${token}`),
+      relay: touch,
+      onAuthenticated: settlePending,
+      log,
+    });
+    return undefined;
+  });
+
+  return server;
 }

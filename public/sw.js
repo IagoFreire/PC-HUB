@@ -1,10 +1,12 @@
 // Mantém a casca do app disponível offline. A API nunca é cacheada.
-const CACHE = 'aurora-v8';
+const CACHE = 'aurora-v9';
 const SHELL = [
   './',
   'index.html',
   'styles.css',
   'app.js',
+  'trackpad.js',
+  'trackpad.css',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-512.png',

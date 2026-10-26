@@ -1,9 +1,10 @@
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApp } from './app.js';
+import { createApp, defaultLog } from './app.js';
 import { loadConfig } from './config.js';
 import { createPcMonitor } from './pc.js';
+import { createTouchRelay } from './touch.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -16,7 +17,13 @@ try {
 }
 
 const monitor = createPcMonitor({ pc: config.pc });
-const server = createApp({ config, monitor, publicDir: path.join(root, 'public') });
+const touch = createTouchRelay({
+  host: config.pc.ip,
+  port: config.pc.touchPort,
+  secret: config.pc.agentSecret,
+  log: defaultLog,
+});
+const server = createApp({ config, monitor, touch, publicDir: path.join(root, 'public') });
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE'

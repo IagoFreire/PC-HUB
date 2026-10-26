@@ -7,6 +7,7 @@
     "ip": "192.168.0.10",
     "broadcast": "192.168.0.255",
     "agentPort": 7777,
+    "touchPort": 7778,
     "agentSecret": "um-segredo-longo-com-pelo-menos-16-caracteres"
   }
 }

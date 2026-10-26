@@ -15,6 +15,7 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="trackpad.css">
   <title>Aurora</title>
 </head>
 <body data-state="unknown">
@@ -95,6 +96,16 @@
         <div class="row"><dt id="timeLabel">Ligado há</dt><dd id="timeVal">—</dd></div>
         <div class="row"><dt>Agente</dt><dd id="agentVal"><span class="dot"></span><span>—</span></dd></div>
       </dl>
+      <button class="card-action" id="trackpadBtn" type="button" disabled>
+        <span class="card-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+            <path d="M3.5 14.5h17M12 14.5v5" />
+          </svg>
+        </span>
+        <span class="card-action-label">Trackpad e teclado</span>
+        <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
     </section>
   </main>
 
@@ -145,6 +156,54 @@
       <button class="cta" type="submit" id="gateSubmit">Entrar</button>
     </form>
   </div>
+
+  <!-- Trackpad e teclado -->
+  <section class="pad-view" id="padView" aria-label="Trackpad" hidden>
+    <header class="pad-head">
+      <button class="pad-back" id="padBack" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        Aurora
+      </button>
+      <h2 class="pad-title">Trackpad</h2>
+      <button class="icon-btn" id="padKbdBtn" type="button" aria-label="Teclado" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <rect x="2.5" y="6" width="19" height="12" rx="2.5" />
+          <path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8 14h8" />
+        </svg>
+      </button>
+    </header>
+
+    <p class="pad-status" id="padStatus" data-state="connecting" role="status">
+      <span class="dot"></span><span id="padStatusText">Conectando ao PC…</span>
+    </p>
+
+    <div class="pad-surface" id="padSurface">
+      <p class="pad-hint">
+        <b>Um dedo</b> move · <b>toque</b> clica<br>
+        <b>Dois dedos</b> rolam · <b>toque com dois</b> = botão direito<br>
+        <b>Toque duplo e arraste</b> para arrastar
+      </p>
+    </div>
+
+    <div class="pad-keys" id="padKeyRow" hidden>
+      <button class="pad-key" type="button" data-key="esc" aria-label="Esc">esc</button>
+      <button class="pad-key" type="button" data-key="tab" aria-label="Tab">⇥</button>
+      <button class="pad-key" type="button" data-key="left" aria-label="Seta para a esquerda">←</button>
+      <button class="pad-key" type="button" data-key="up" aria-label="Seta para cima">↑</button>
+      <button class="pad-key" type="button" data-key="down" aria-label="Seta para baixo">↓</button>
+      <button class="pad-key" type="button" data-key="right" aria-label="Seta para a direita">→</button>
+      <button class="pad-key" type="button" data-key="backspace" aria-label="Apagar">⌫</button>
+      <button class="pad-key" type="button" data-key="enter" aria-label="Enter">⏎</button>
+    </div>
+
+    <div class="pad-buttons">
+      <button class="pad-btn" type="button" data-button="l" aria-label="Clique esquerdo">Esquerdo</button>
+      <button class="pad-btn" type="button" data-button="r" aria-label="Clique direito">Direito</button>
+    </div>
+
+    <input class="pad-input" id="padInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off"
+           spellcheck="false" enterkeyhint="enter" aria-label="Digitar no PC">
+  </section>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

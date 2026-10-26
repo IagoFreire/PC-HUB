@@ -1,21 +1,24 @@
 ﻿#Requires -RunAsAdministrator
 <#
-  Remove o Aurora Agent: tarefa agendada, regra de firewall e C:\ProgramData\Aurora.
+  Remove o Aurora Agent e o Aurora Touch: tarefas agendadas, regras de firewall e C:\ProgramData\Aurora.
   Uso: powershell -ExecutionPolicy Bypass -File .\agent\uninstall-agent.ps1
 #>
 $ErrorActionPreference = 'Stop'
 
-$TaskName = 'Aurora Agent'
 $InstallDir = Join-Path $env:ProgramData 'Aurora'
 
-if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-    Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-    Write-Host '  > Tarefa removida'
+foreach ($name in 'Aurora Agent', 'Aurora Touch') {
+    if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $name -Confirm:$false
+        Write-Host "  > Tarefa '$name' removida"
+    }
 }
 
-Get-NetFirewallRule -Name 'AuroraAgent' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-Write-Host '  > Regra de firewall removida'
+foreach ($rule in 'AuroraAgent', 'AuroraTouch') {
+    Get-NetFirewallRule -Name $rule -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+}
+Write-Host '  > Regras de firewall removidas'
 
 if (Test-Path $InstallDir) {
     Remove-Item -Recurse -Force $InstallDir

@@ -1,17 +1,19 @@
 # Aurora ✦
 
-**Seu PC na palma da mão.** Um PWA para iPhone que liga o PC por Wake-on-LAN, desliga/reinicia e mostra se ele está ligado — tudo pela rede de casa.
+**Seu PC na palma da mão.** Um PWA para iPhone que liga o PC por Wake-on-LAN, desliga/reinicia, mostra se ele está ligado e vira **trackpad e teclado** do PC — tudo pela rede de casa.
 
 ```
- iPhone (PWA)  ──HTTP──►  Notebook (servidor Aurora)  ──magic packet (UDP)──►  PC
-                                   │
-                                   └──HTTP + segredo──►  Agente no PC (desligar/reiniciar, status)
+ iPhone (PWA)  ──HTTP/WebSocket──►  Notebook (servidor Aurora)  ──magic packet (UDP)──►  PC
+                                            │
+                                            ├──HTTP + segredo──►  Aurora Agent (desligar/reiniciar, status)
+                                            └──TCP + HMAC─────►  Aurora Touch (mouse e teclado)
 ```
 
 | Peça | Onde roda | O que faz |
 |---|---|---|
-| `server/` + `public/` | Notebook que fica ligado | Serve o app, envia o magic packet, consulta o PC |
-| `agent/` | PC | Responde "estou ligado" e executa desligar/reiniciar |
+| `server/` + `public/` | Notebook que fica ligado | Serve o app, envia o magic packet, consulta o PC, repassa o trackpad |
+| `agent/aurora-agent.ps1` | PC, como SYSTEM, desde o boot | Responde "estou ligado" e executa desligar/reiniciar |
+| `agent/aurora-touch.ps1` | PC, na sua sessão, após o login | Transforma toques do celular em mouse e teclado |
 
 Sem dependências: só Node.js 18+ no notebook e o PowerShell que já vem no Windows.
 
@@ -30,9 +32,10 @@ powershell -ExecutionPolicy Bypass -File .\agent\install-agent.ps1 -ConfigureWol
 ```
 
 Isso:
-- copia o agente para `C:\ProgramData\Aurora` (o segredo fica legível só por SYSTEM/Administradores);
-- libera a porta `7777` no firewall **apenas para a rede local**;
+- copia o agente para `C:\ProgramData\Aurora` (o segredo fica legível só por SYSTEM/Administradores — e pelo seu usuário, para o trackpad);
+- libera as portas `7777` (agente) e `7778` (trackpad) no firewall **apenas para a rede local**;
 - cria a tarefa **Aurora Agent**, que inicia junto com o Windows (antes do login);
+- cria a tarefa **Aurora Touch**, que inicia quando você faz login (o trackpad precisa da sua sessão para mexer no mouse);
 - com `-ConfigureWol`: ativa *Wake on Magic Packet* / *Shutdown Wake-On-Lan* na placa de rede e **desativa a Inicialização Rápida** (que impede o WoL depois de desligar).
 
 O segredo e a porta vêm do `config.json` da raiz, então PC e servidor já ficam combinados. No fim ele mostra MAC e IP do PC e faz um autoteste.
@@ -95,6 +98,26 @@ Pronto: a Aurora abre em tela cheia, com ícone próprio.
 - **Toque com o PC ligado** → abre a confirmação para **Desligar** ou **Reiniciar** (o Windows recebe 5 s de aviso).
 - O céu muda com o estado: aurora acesa = ligado, noite = desligado, tons quentes = desligando.
 
+### Trackpad e teclado
+Com o PC ligado, toque em **Trackpad e teclado** no cartão de baixo.
+
+| Gesto | Ação no PC |
+|---|---|
+| Um dedo arrastando | Move o cursor (mais rápido = vai mais longe) |
+| Toque | Clique esquerdo |
+| Toque com dois dedos | Clique direito |
+| Dois dedos arrastando | Rola a página (o conteúdo segue o dedo) |
+| Toque duplo e arraste | Segura o clique e arrasta (selecionar, mover janelas) |
+| Botões **Esquerdo / Direito** | Segurar = botão apertado, para arrastar com outro dedo |
+| Ícone de teclado | Abre o teclado do iPhone e digita no PC; aparecem também Esc, Tab, setas, ⌫ e Enter |
+
+O trackpad só funciona com você **logado no Windows**: na tela de bloqueio o Windows não aceita mouse/teclado simulado. Sua conta do Windows precisa ser **administradora** — o Aurora Touch roda elevado (para alcançar também janelas de administrador) e só assim lê o segredo, que fica fora do alcance de programas comuns.
+
+### Segurança, em resumo
+- O app inteiro confia na **rede de casa**: o tráfego é HTTP comum, então o que você digita pelo trackpad passa sem criptografia pela rede local. Não use em Wi-Fi compartilhado; para fora de casa, use o Tailscale (criptografado).
+- Quem tiver o **código de acesso** controla o PC (inclusive teclado). Trate-o como uma senha.
+- Notebook ↔ PC usam o `agentSecret`: o agente exige o segredo em cada pedido, e o Aurora Touch faz um desafio HMAC a cada conexão (o segredo nunca trafega). As portas `7777`/`7778` só aceitam a rede local.
+
 ---
 
 ## `config.json`
@@ -109,6 +132,7 @@ Pronto: a Aurora abre em tela cheia, com ícone próprio.
     "ip": "192.168.200.108",       // IP do PC
     "broadcast": "192.168.200.255",// broadcast da rede (opcional, deduzido do IP)
     "agentPort": 7777,             // porta do agente
+    "touchPort": 7778,             // porta do Aurora Touch (trackpad), opcional
     "agentSecret": "…"             // segredo compartilhado servidor ↔ agente
   }
 }
@@ -131,6 +155,9 @@ Não exponha a porta no roteador. Use o [Tailscale](https://tailscale.com) no no
 | "Agente: Não responde" com o PC ligado | Tarefa *Aurora Agent* parada ou firewall — veja `C:\ProgramData\Aurora\agent.log` |
 | "Agente: Segredo não confere" | `agentSecret` diferente entre `config.json` e o PC → rode o instalador de novo |
 | "Muitas tentativas erradas" | 10 códigos errados seguidos; espere 15 minutos |
+| Trackpad: "Não consegui conectar ao Aurora Touch" | Ninguém logado no Windows, ou a tarefa *Aurora Touch* não está rodando — veja `%LOCALAPPDATA%\Aurora\touch.log` |
+| Trackpad: "recusou o segredo" | `agentSecret` diferente entre `config.json` e o PC → rode o instalador de novo |
+| Trackpad não mexe em janelas de administrador | O Aurora Touch precisa rodar elevado: reinstale com o PowerShell como Administrador |
 
 ## Desenvolvimento
 

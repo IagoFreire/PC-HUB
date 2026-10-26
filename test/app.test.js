@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +21,12 @@ const monitor = {
   },
 };
 
+const touchEvents = [];
+const touch = {
+  open: async () => {},
+  send: async (event) => { touchEvents.push(event); },
+};
+
 let server;
 let base;
 
@@ -27,6 +34,7 @@ before(async () => {
   server = createApp({
     config: { accessToken: TOKEN, pc: { mac: 'B0:82:E2:4C:1F:EF', broadcast: '192.168.0.255' } },
     monitor,
+    touch,
     publicDir,
     log: () => {},
   });
@@ -91,4 +99,97 @@ test('não deixa sair da pasta public', async () => {
   assert.equal(resolvePublicPath(publicDir, '/a%00.html'), null);
   assert.equal((await fetch(`${base}/..%5cconfig.json`)).status, 404);
   assert.equal((await fetch(`${base}/%2e%2e/package.json`)).status, 404);
+});
+
+/* ---------- trackpad (WebSocket) ---------- */
+
+function openSocket(path = '/api/touch') {
+  const ws = new WebSocket(`${base.replace('http', 'ws')}${path}`);
+  const messages = [];
+  const nextMessage = () => new Promise((resolve) => {
+    if (messages.length) {
+      resolve(messages.shift());
+      return;
+    }
+    ws.addEventListener('message', function once() {
+      ws.removeEventListener('message', once);
+      resolve(messages.shift());
+    });
+  });
+  ws.addEventListener('message', (event) => messages.push(JSON.parse(event.data)));
+  const opened = new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', reject, { once: true });
+  });
+  const closed = new Promise((resolve) => ws.addEventListener('close', (e) => resolve(e.code), { once: true }));
+  return { ws, opened, closed, nextMessage };
+}
+
+test('trackpad: com o código certo fica pronto e repassa eventos validados', async () => {
+  const { ws, opened, nextMessage } = openSocket();
+  await opened;
+  ws.send(JSON.stringify({ t: 'auth', token: TOKEN }));
+  assert.deepEqual(await nextMessage(), { t: 'ready' });
+
+  ws.send(JSON.stringify({ t: 'm', dx: 3.2, dy: -2 }));
+  ws.send(JSON.stringify({ t: 'shell', cmd: 'calc' }));
+  ws.send(JSON.stringify({ t: 'k', text: 'oi' }));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(touchEvents.slice(-2), [{ t: 'm', dx: 3, dy: -2 }, { t: 'k', text: 'oi' }]);
+  ws.close();
+});
+
+test('trackpad: código errado recebe erro e a conexão é fechada', async () => {
+  const { ws, opened, closed, nextMessage } = openSocket();
+  await opened;
+  ws.send(JSON.stringify({ t: 'auth', token: 'chute' }));
+  assert.equal((await nextMessage()).code, 'auth');
+  assert.equal(await closed, 4002);
+});
+
+test('trackpad: recusa upgrade vindo de outro site ou em outra rota', async () => {
+  const upgradeStatus = (path, headers = {}) => new Promise((resolve, reject) => {
+    const req = http.request(`${base}${path}`, {
+      headers: {
+        Connection: 'Upgrade',
+        Upgrade: 'websocket',
+        'Sec-WebSocket-Version': '13',
+        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        ...headers,
+      },
+    });
+    req.on('response', (res) => resolve(res.statusCode));
+    req.on('upgrade', (res, socket) => {
+      socket.destroy();
+      resolve(res.statusCode);
+    });
+    req.on('error', reject);
+    req.end();
+  });
+
+  assert.equal(await upgradeStatus('/api/touch', { Origin: 'http://site-malicioso.com' }), 403);
+  assert.equal(await upgradeStatus('/api/outra-coisa'), 404);
+  assert.equal(await upgradeStatus('/api/touch', { Origin: base }), 101);
+});
+
+test('CSP libera WebSocket só para o próprio host', async () => {
+  const csp = (await fetch(`${base}/`)).headers.get('content-security-policy');
+  const host = new URL(base).host;
+  assert.match(csp, new RegExp(`connect-src 'self' ws://${host} wss://${host}`));
+});
+
+test('trackpad: no máximo 2 conexões sem código por IP', async () => {
+  // O teste anterior derruba um socket aceito só no TCP; o servidor precisa liberar essa vaga logo.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const sockets = [openSocket(), openSocket()];
+  await Promise.all(sockets.map((s) => s.opened));
+  const third = openSocket();
+  await assert.rejects(third.opened);
+  for (const s of sockets) s.ws.close();
+  await Promise.all(sockets.map((s) => s.closed));
+
+  // Depois que as pendentes fecham, a vaga volta.
+  const again = openSocket();
+  await again.opened;
+  again.ws.close();
 });

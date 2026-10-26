@@ -1,3 +1,5 @@
+import { createTrackpad } from './trackpad.js';
+
 const TOKEN_KEY = 'aurora.token';
 const POLL_MS = 5000;
 const POLL_FAST_MS = 1500;
@@ -29,6 +31,7 @@ const el = {
   gateError: $('gateError'),
   gateSubmit: $('gateSubmit'),
   toast: $('toast'),
+  trackpadBtn: $('trackpadBtn'),
 };
 
 class AuthError extends Error {}
@@ -160,6 +163,7 @@ function render() {
   setText(el.hint, view.hint);
   el.powerBtn.disabled = busy || !view.canPress;
   el.powerBtn.setAttribute('aria-label', view.label);
+  el.trackpadBtn.disabled = !(reachable && status?.online);
 
   if (!status) return;
 
@@ -234,6 +238,12 @@ const haptic = (() => {
   document.body.append(label);
   return () => label.click();
 })();
+
+const trackpad = createTrackpad({
+  getToken: () => session.token,
+  haptic,
+  onAuthError: (message) => openGate(message),
+});
 
 function toast(message) {
   el.toast.textContent = message;
@@ -341,6 +351,11 @@ el.powerSheet.addEventListener('click', (event) => {
   haptic('strong');
   closeSheet(el.powerSheet);
   power(button.dataset.action);
+});
+
+el.trackpadBtn.addEventListener('click', () => {
+  haptic('tap');
+  trackpad.open();
 });
 
 el.settingsBtn.addEventListener('click', () => {

@@ -5,6 +5,7 @@ const MIN_ACCESS_TOKEN_LENGTH = 8;
 const MIN_AGENT_SECRET_LENGTH = 16;
 const DEFAULT_PORT = 8080;
 const DEFAULT_AGENT_PORT = 7777;
+const DEFAULT_TOUCH_PORT = 7778;
 
 export function normalizeMac(mac) {
   const hex = String(mac ?? '').replace(/[:\-.\s]/g, '');
@@ -32,6 +33,7 @@ export function validateConfig(raw) {
   const pc = raw?.pc ?? {};
   const port = raw?.port ?? DEFAULT_PORT;
   const agentPort = pc.agentPort ?? DEFAULT_AGENT_PORT;
+  const touchPort = pc.touchPort ?? DEFAULT_TOUCH_PORT;
 
   if (!isPort(port)) errors.push('port precisa ser um número entre 1 e 65535');
   if (typeof raw?.accessToken !== 'string' || raw.accessToken.length < MIN_ACCESS_TOKEN_LENGTH) {
@@ -49,6 +51,7 @@ export function validateConfig(raw) {
   const broadcast = pc.broadcast ?? (isIPv4(pc.ip) ? deriveBroadcast(pc.ip) : undefined);
   if (!isIPv4(broadcast)) errors.push('pc.broadcast precisa ser um IPv4 (ex: 192.168.0.255)');
   if (!isPort(agentPort)) errors.push('pc.agentPort precisa ser um número entre 1 e 65535');
+  if (!isPort(touchPort)) errors.push('pc.touchPort precisa ser um número entre 1 e 65535');
   if (typeof pc.agentSecret !== 'string' || pc.agentSecret.length < MIN_AGENT_SECRET_LENGTH) {
     errors.push(`pc.agentSecret precisa ter pelo menos ${MIN_AGENT_SECRET_LENGTH} caracteres`);
   }
@@ -67,6 +70,7 @@ export function validateConfig(raw) {
       ip: pc.ip,
       broadcast,
       agentPort,
+      touchPort,
       agentSecret: pc.agentSecret,
     }),
   });
