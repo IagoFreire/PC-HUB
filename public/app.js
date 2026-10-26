@@ -212,6 +212,29 @@ async function poll() {
 
 /* ---------- Feedback ---------- */
 
+const VIBRATION = Object.freeze({ tap: 12, strong: [18, 40, 18] });
+
+/**
+ * Vibração ao tocar. Android: navigator.vibrate. iPhone (Safari não tem vibrate):
+ * acionar um <input switch> nativo dispara o "tique" do iOS 18+. Precisa ser chamado
+ * dentro do próprio toque do usuário, senão o iOS ignora.
+ */
+const haptic = (() => {
+  if (typeof navigator.vibrate === 'function') {
+    return (kind = 'tap') => navigator.vibrate(VIBRATION[kind]);
+  }
+  const label = document.createElement('label');
+  label.className = 'haptic-proxy';
+  label.setAttribute('aria-hidden', 'true');
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  input.tabIndex = -1;
+  label.append(input);
+  document.body.append(label);
+  return () => label.click();
+})();
+
 function toast(message) {
   el.toast.textContent = message;
   el.toast.classList.add('is-visible');
@@ -306,6 +329,7 @@ const power = (action) => runAction(async () => {
 });
 
 el.powerBtn.addEventListener('click', () => {
+  haptic('tap');
   const { state } = deriveView(session.status, session.reachable);
   if (state === 'offline' || state === 'waking') wake();
   else if (state === 'online') openPowerSheet();
@@ -314,6 +338,7 @@ el.powerBtn.addEventListener('click', () => {
 el.powerSheet.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
   if (!button || button.disabled) return;
+  haptic('strong');
   closeSheet(el.powerSheet);
   power(button.dataset.action);
 });
