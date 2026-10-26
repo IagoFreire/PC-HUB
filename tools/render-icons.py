@@ -2,7 +2,12 @@
 
 Renderiza o SVG com Chrome/Edge headless (fiel a gradientes e blur) e
 redimensiona com Pillow. Uso: python tools/render-icons.py
+
+O ícone da Tela de Início também é embutido no index.html (data URI): o iOS baixa o
+apple-touch-icon por um serviço à parte, que falha com certificado próprio (HTTPS local).
 """
+import base64
+import re
 import shutil
 import subprocess
 import sys
@@ -12,7 +17,10 @@ from pathlib import Path
 from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
-ICONS = ROOT / "public" / "icons"
+PUBLIC = ROOT / "public"
+ICONS = PUBLIC / "icons"
+INDEX_HTML = PUBLIC / "index.html"
+APPLE_ICON_LINK_RE = re.compile(r'<link rel="apple-touch-icon"[^>]*>')
 SOURCE = ICONS / "icon.svg"
 SVG_SIZE = 1024
 SUPERSAMPLE = 2  # renderiza em 2048 px e reduz: bordas bem mais limpas
@@ -60,6 +68,19 @@ def render_svg(browser: str, target: Path) -> None:
         )
 
 
+def publish_apple_icon(png: Path) -> None:
+    """Embute o ícone no index.html e põe uma cópia na raiz, onde o iOS também procura."""
+    shutil.copyfile(png, PUBLIC / "apple-touch-icon.png")
+    data = base64.b64encode(png.read_bytes()).decode("ascii")
+    tag = f'<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,{data}">'
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    updated, count = APPLE_ICON_LINK_RE.subn(lambda _: tag, html, count=1)
+    if count != 1:
+        sys.exit('Não achei o <link rel="apple-touch-icon"> no index.html.')
+    INDEX_HTML.write_text(updated, encoding="utf-8", newline="")
+    print(f"  apple-touch-icon embutido no index.html ({len(data) // 1024} KB)")
+
+
 def main() -> None:
     browser = find_browser()
     with tempfile.TemporaryDirectory() as tmp:
@@ -74,6 +95,7 @@ def main() -> None:
                 resized = resized.filter(SHARPEN)
             resized.save(ICONS / name, optimize=True)
             print(f"  {name} ({size}x{size})")
+    publish_apple_icon(ICONS / "apple-touch-icon.png")
 
 
 if __name__ == "__main__":

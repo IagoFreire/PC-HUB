@@ -1,5 +1,5 @@
 // Mantém a casca do app disponível offline. A API nunca é cacheada.
-const CACHE = 'aurora-v16';
+const CACHE = 'aurora-v17';
 const SHELL = [
   './',
   'index.html',
@@ -12,6 +12,7 @@ const SHELL = [
   'icons/icon.svg',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
+  'apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
