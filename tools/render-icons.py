@@ -9,12 +9,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 ICONS = ROOT / "public" / "icons"
 SOURCE = ICONS / "icon.svg"
-RENDER_SIZE = 1024
+SVG_SIZE = 1024
+SUPERSAMPLE = 2  # renderiza em 2048 px e reduz: bordas bem mais limpas
+RENDER_SIZE = SVG_SIZE * SUPERSAMPLE
+# Reduções grandes amolecem a imagem; um unsharp leve devolve o contorno.
+SHARPEN = ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)
 OUTPUTS = {
     "apple-touch-icon.png": 180,
     "icon-192.png": 192,
@@ -45,7 +49,8 @@ def render_svg(browser: str, target: Path) -> None:
                 "--disable-gpu",
                 "--hide-scrollbars",
                 f"--user-data-dir={profile}",
-                f"--window-size={RENDER_SIZE},{RENDER_SIZE}",
+                f"--window-size={SVG_SIZE},{SVG_SIZE}",
+                f"--force-device-scale-factor={SUPERSAMPLE}",
                 f"--screenshot={target}",
                 SOURCE.as_uri(),
             ],
@@ -62,9 +67,12 @@ def main() -> None:
         render_svg(browser, master)
         image = Image.open(master).convert("RGB")
         if image.size != (RENDER_SIZE, RENDER_SIZE):
-            image = image.crop((0, 0, RENDER_SIZE, RENDER_SIZE))
+            sys.exit(f"Render saiu com {image.size}, esperado {RENDER_SIZE}x{RENDER_SIZE}.")
         for name, size in OUTPUTS.items():
-            image.resize((size, size), Image.LANCZOS).save(ICONS / name, optimize=True)
+            resized = image.resize((size, size), Image.LANCZOS)
+            if size < 512:
+                resized = resized.filter(SHARPEN)
+            resized.save(ICONS / name, optimize=True)
             print(f"  {name} ({size}x{size})")
 
 

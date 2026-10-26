@@ -1,5 +1,5 @@
 // Mantém a casca do app disponível offline. A API nunca é cacheada.
-const CACHE = 'aurora-v1';
+const CACHE = 'aurora-v2';
 const SHELL = [
   './',
   'index.html',
@@ -7,7 +7,7 @@ const SHELL = [
   'app.js',
   'manifest.webmanifest',
   'icons/icon.svg',
-  'icons/icon-192.png',
+  'icons/icon-512.png',
   'icons/apple-touch-icon.png',
 ];
 

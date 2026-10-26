@@ -22,8 +22,13 @@
       <stop offset="1" stop-color="#4cc3ff" stop-opacity="0" />
     </radialGradient>
     <filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <feGaussianBlur stdDeviation="28" />
+      <feGaussianBlur stdDeviation="16" />
     </filter>
+    <linearGradient id="core" gradientUnits="userSpaceOnUse" x1="300" y1="250" x2="740" y2="800">
+      <stop offset="0" stop-color="#e6fff6" />
+      <stop offset="0.5" stop-color="#e3f6ff" />
+      <stop offset="1" stop-color="#efe8ff" />
+    </linearGradient>
   </defs>
 
   <rect width="1024" height="1024" fill="url(#night)" />
@@ -45,11 +50,16 @@
 
   <!-- símbolo de energia: brilho + traço -->
   <g fill="none" stroke-linecap="round">
-    <g stroke="url(#stroke)" stroke-width="84" filter="url(#soft)" opacity="0.85">
+    <g stroke="url(#stroke)" stroke-width="72" filter="url(#soft)" opacity="0.55">
       <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
       <path d="M512 248 V500" />
     </g>
     <g stroke="url(#stroke)" stroke-width="64">
+      <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
+      <path d="M512 248 V500" />
+    </g>
+    <!-- filete de luz no centro do traço: dá definição em tamanhos pequenos -->
+    <g stroke="url(#core)" stroke-width="18" opacity="0.75">
       <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
       <path d="M512 248 V500" />
     </g>
