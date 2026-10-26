@@ -1,67 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Versão simples: fundo azul-noite e o símbolo de energia em gradiente de aurora, sem brilho.
+       Sem cantos arredondados: o iOS e o Android aplicam a máscara do ícone por conta própria. -->
   <defs>
     <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#0a0f24" />
-      <stop offset="1" stop-color="#03040a" />
+      <stop offset="0" stop-color="#0d1330" />
+      <stop offset="1" stop-color="#070a1a" />
     </linearGradient>
     <linearGradient id="stroke" gradientUnits="userSpaceOnUse" x1="300" y1="250" x2="740" y2="800">
       <stop offset="0" stop-color="#6af5c6" />
       <stop offset="0.5" stop-color="#4cc3ff" />
       <stop offset="1" stop-color="#b799ff" />
     </linearGradient>
-    <radialGradient id="glowGreen" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#5ef2c0" stop-opacity="0.75" />
-      <stop offset="1" stop-color="#5ef2c0" stop-opacity="0" />
-    </radialGradient>
-    <radialGradient id="glowViolet" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#9d7bff" stop-opacity="0.7" />
-      <stop offset="1" stop-color="#9d7bff" stop-opacity="0" />
-    </radialGradient>
-    <radialGradient id="glowCyan" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#4cc3ff" stop-opacity="0.55" />
-      <stop offset="1" stop-color="#4cc3ff" stop-opacity="0" />
-    </radialGradient>
-    <filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-      <feGaussianBlur stdDeviation="16" />
-    </filter>
-    <linearGradient id="core" gradientUnits="userSpaceOnUse" x1="300" y1="250" x2="740" y2="800">
-      <stop offset="0" stop-color="#e6fff6" />
-      <stop offset="0.5" stop-color="#e3f6ff" />
-      <stop offset="1" stop-color="#efe8ff" />
-    </linearGradient>
   </defs>
 
   <rect width="1024" height="1024" fill="url(#night)" />
 
-  <!-- faixas de aurora -->
-  <ellipse cx="300" cy="230" rx="520" ry="210" fill="url(#glowGreen)" transform="rotate(-18 300 230)" />
-  <ellipse cx="800" cy="300" rx="420" ry="200" fill="url(#glowViolet)" transform="rotate(14 800 300)" />
-  <ellipse cx="540" cy="560" rx="380" ry="300" fill="url(#glowCyan)" />
-
-  <!-- estrelas -->
-  <g fill="#ffffff">
-    <circle cx="170" cy="150" r="4" opacity="0.7" />
-    <circle cx="860" cy="120" r="3" opacity="0.6" />
-    <circle cx="760" cy="880" r="3" opacity="0.4" />
-    <circle cx="140" cy="760" r="3.5" opacity="0.45" />
-    <circle cx="905" cy="560" r="2.5" opacity="0.5" />
-    <circle cx="600" cy="110" r="2.5" opacity="0.55" />
-  </g>
-
-  <!-- símbolo de energia: brilho + traço -->
-  <g fill="none" stroke-linecap="round">
-    <g stroke="url(#stroke)" stroke-width="72" filter="url(#soft)" opacity="0.55">
-      <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
-      <path d="M512 248 V500" />
-    </g>
-    <g stroke="url(#stroke)" stroke-width="64">
-      <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
-      <path d="M512 248 V500" />
-    </g>
-    <!-- filete de luz no centro do traço: dá definição em tamanhos pequenos -->
-    <g stroke="url(#core)" stroke-width="18" opacity="0.75">
-      <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
-      <path d="M512 248 V500" />
-    </g>
+  <g fill="none" stroke="url(#stroke)" stroke-width="84" stroke-linecap="round">
+    <path d="M663.7 351.2 A236 236 0 1 1 360.3 351.2" />
+    <path d="M512 248 V500" />
   </g>
 </svg>
