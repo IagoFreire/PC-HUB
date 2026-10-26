@@ -3,7 +3,32 @@
 
 const API_PATH = '/mon/1.1/device';
 const FETCH_TIMEOUT_MS = 2500;
+const LOG_FETCH_TIMEOUT_MS = 8000;
 const CACHE_MS = 2000;
+const EVENTS_CACHE_MS = 30_000;
+const MAX_EVENTS = 100;
+const MAX_OUTAGES = 30;
+
+// Códigos de evento do Supervise (mesmos textos da página "Eventos" dele).
+const EVENT_TEXT = Object.freeze({
+  0: 'Início do monitoramento', 1: 'Fim do monitoramento', 2: 'Falha por sobretemperatura', 3: 'Falha interna',
+  4: 'Falha por fim de bateria', 5: 'Falha de sobrecarga', 6: 'Curto-circuito na saída', 7: 'Tensão de saída anormal',
+  8: 'Tensão de bateria anormal', 9: 'Falha no inversor', 10: 'Foi para a bateria', 11: 'Voltou para a rede',
+  12: 'Modo stand-by', 14: 'Modo atenção', 15: 'Inicializando', 16: 'Frequência de entrada baixa',
+  17: 'Frequência de entrada alta', 18: 'Rede elétrica normal', 19: 'Falha no sincronismo', 20: 'Sincronismo OK',
+  21: 'Tensão de entrada baixa', 22: 'Tensão de entrada alta', 24: 'Ausência de rede', 26: 'Bateria baixa',
+  27: 'Bateria normal', 28: 'Ruído na rede', 29: 'Bateria carregada', 30: 'Contagem de desligamento ativa',
+  31: 'Comunicando', 32: 'Sem comunicação', 33: 'Controle remoto acionado', 35: 'Não calibrado',
+  36: 'Desligamento por autonomia', 37: 'Desligamento pelo usuário', 38: 'Desligamento por bateria baixa',
+  39: 'Desligamento por fim de bateria', 40: 'Desligamento agendado', 41: 'Cor alterada', 48: 'Descarga completa ativada',
+  49: 'Ventilador anormal', 50: 'Desligamento cancelado', 51: 'Rede muito baixa', 52: 'Potência de saída muito alta',
+  53: 'Falha no tiristor', 54: 'Bateria desconectada', 55: 'Bateria envelhecida', 56: 'Sobrecarga leve na saída',
+  57: 'Autonomia expandida', 58: 'Autonomia reduzida',
+});
+// Queda = ida para a bateria / ausência de rede; volta = rede de novo.
+const OUTAGE_START = new Set([10, 24]);
+const OUTAGE_END = new Set([11, 18]);
+const PROBLEM_EVENTS = new Set([2, 3, 4, 5, 6, 7, 8, 9, 19, 21, 22, 26, 28, 32, 36, 37, 38, 39, 40, 49, 51, 52, 53, 54, 55, 56]);
 
 // Mesma prioridade da tela do Supervise: falhas primeiro, depois avisos de rede/bateria.
 const FAILURES = Object.freeze([
@@ -85,15 +110,75 @@ export function describeUps(device) {
   };
 }
 
+function kindOf(code) {
+  if (OUTAGE_START.has(code)) return 'outage';
+  if (OUTAGE_END.has(code)) return 'restore';
+  if (PROBLEM_EVENTS.has(code)) return 'problem';
+  return 'info';
+}
+
+/**
+ * Transforma o log do Supervise em eventos legíveis e em quedas de energia
+ * (cada ida para a bateria pareada com a volta seguinte). Tudo do mais recente para o mais antigo.
+ */
+export function describeEvents(logs, currentMode = null) {
+  const entries = (Array.isArray(logs) ? logs : [])
+    .filter((log) => Number.isFinite(log?.dateTime) && Number.isInteger(log?.event))
+    .sort((a, b) => a.dateTime - b.dateTime);
+
+  const outages = [];
+  let open = null;
+  // Menor carga vista durante a queda ("a bateria chegou a X%"); a volta gera vários eventos no mesmo instante.
+  const lowest = (current, log) => {
+    const charge = num(log.vars?.cBattery);
+    if (charge === null) return current;
+    const rounded = Math.min(100, Math.round(charge));
+    return current === null ? rounded : Math.min(current, rounded);
+  };
+  for (const log of entries) {
+    if (open && (OUTAGE_START.has(log.event) || OUTAGE_END.has(log.event))) {
+      open = { ...open, lowestBattery: lowest(open.lowestBattery, log) };
+    }
+    // Outro evento de volta no mesmo instante da que fechou a queda: a leitura de bateria dele também conta.
+    const lastClosed = outages.at(-1);
+    if (!open && OUTAGE_END.has(log.event) && lastClosed?.end === log.dateTime) {
+      outages[outages.length - 1] = { ...lastClosed, lowestBattery: lowest(lastClosed.lowestBattery, log) };
+    }
+    if (OUTAGE_START.has(log.event) && !open) {
+      open = { start: log.dateTime, lowestBattery: lowest(null, log) };
+    } else if (OUTAGE_END.has(log.event) && open) {
+      outages.push({ ...open, end: log.dateTime, durationSec: Math.round((log.dateTime - open.start) / 1000) });
+      open = null;
+    }
+  }
+  // Sem registro de volta: só é "em andamento" se o nobreak está na bateria agora.
+  if (open) outages.push({ ...open, end: null, durationSec: null, ongoing: currentMode === 'battery' });
+
+  const events = entries.map((log) => ({
+    at: log.dateTime,
+    code: log.event,
+    text: EVENT_TEXT[log.event] ?? `Evento ${log.event}`,
+    kind: kindOf(log.event),
+  }));
+
+  return {
+    outages: outages.reverse().slice(0, MAX_OUTAGES),
+    events: events.reverse().slice(0, MAX_EVENTS),
+    totalEvents: entries.length,
+  };
+}
+
 export function createUpsMonitor({ url, id = null, fetchImpl = fetch, now = Date.now }) {
   let deviceId = id;
   let snapshot = null;
   let inflight = null;
+  let eventsSnapshot = null;
+  let eventsInflight = null;
 
-  async function getJson(path) {
+  async function getJson(path, timeoutMs = FETCH_TIMEOUT_MS) {
     const res = await fetchImpl(new URL(path, url), {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
@@ -135,5 +220,35 @@ export function createUpsMonitor({ url, id = null, fetchImpl = fetch, now = Date
     return snapshot;
   }
 
-  return Object.freeze({ getStatus });
+  async function refreshEvents() {
+    const checkedAt = now();
+    try {
+      const target = await resolveDeviceId();
+      const [{ logs }, status] = await Promise.all([
+        getJson(`${API_PATH}/${encodeURIComponent(target)}/log`, LOG_FETCH_TIMEOUT_MS),
+        getStatus(),
+      ]);
+      eventsSnapshot = { available: true, ...describeEvents(logs, status.mode ?? null), checkedAt };
+    } catch (err) {
+      eventsSnapshot = {
+        available: false,
+        error: `Não consegui ler os eventos do Supervise (${err.message}).`,
+        checkedAt,
+      };
+    }
+    return eventsSnapshot;
+  }
+
+  /** O log é maior e muda pouco: guardado por 30 s. */
+  async function getEvents() {
+    if (!eventsSnapshot || now() - eventsSnapshot.checkedAt > EVENTS_CACHE_MS) {
+      eventsInflight ??= refreshEvents().finally(() => {
+        eventsInflight = null;
+      });
+      await eventsInflight;
+    }
+    return eventsSnapshot;
+  }
+
+  return Object.freeze({ getStatus, getEvents });
 }

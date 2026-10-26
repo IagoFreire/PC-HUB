@@ -67,7 +67,8 @@
 .ups-view[data-tone="warn"] { --tone: var(--warm-amber); }
 .ups-view[data-tone="critical"] { --tone: var(--danger); }
 
-.ups-view .pad-head { flex: none; }
+/* Nada encolhe: com conteúdo maior que a tela, a tela rola (em vez de espremer a grade). */
+.ups-view > * { flex: none; }
 .ups-view .pad-title { visibility: visible; }
 
 /* Destaque: medidor de carga + modo */
@@ -179,6 +180,88 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Quedas de energia ---------- */
+
+.ups-events { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+
+.ups-section-title {
+  margin: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ups-events-summary { margin: 0 4px 2px; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+
+.ups-outages,
+.ups-log-list { margin: 0; padding: 0; list-style: none; }
+
+.ups-outages {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+}
+.ups-outages:empty { display: none; }
+
+.ups-outage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "when   duration"
+    "detail detail";
+  gap: 2px 12px;
+  padding: 11px 16px;
+  font-variant-numeric: tabular-nums;
+}
+.ups-outage + .ups-outage { border-top: 0.5px solid var(--hairline); }
+.ups-outage-when { grid-area: when; font-size: 15px; color: var(--ink-2); }
+.ups-outage-when b { font-weight: 600; color: var(--ink); }
+.ups-outage-duration { grid-area: duration; font-size: 15px; font-weight: 600; color: var(--warm-amber); }
+.ups-outage-detail { grid-area: detail; font-size: 12px; color: var(--ink-3); }
+.ups-outage-detail:empty { display: none; }
+.ups-outage.is-ongoing { background: rgba(255, 179, 92, .1); }
+.ups-outage.is-ongoing .ups-outage-duration { animation: blink .9s ease-in-out infinite alternate; }
+
+/* Log completo, recolhível */
+.ups-log summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+  list-style: none;
+}
+.ups-log summary::-webkit-details-marker { display: none; }
+.ups-log summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--fast) ease;
+}
+.ups-log[open] summary::before { transform: rotate(45deg); }
+.ups-log summary span { font-weight: 400; color: var(--ink-3); }
+
+.ups-log-item {
+  display: grid;
+  grid-template-columns: 9.5em minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 4px;
+  font-size: 13px;
+  border-top: 0.5px solid var(--hairline);
+}
+.ups-log-when { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ups-log-item[data-kind="outage"] .ups-log-text { color: var(--warm-amber); }
+.ups-log-item[data-kind="restore"] .ups-log-text { color: var(--aurora-green); }
+.ups-log-item[data-kind="problem"] .ups-log-text { color: #ff8a80; }
+
 .ups-foot {
   margin: 0;
   font-size: 12px;
@@ -195,11 +278,12 @@
     max-width: none;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto;
     grid-template-areas:
-      "head head"
-      "hero grid"
-      "foot foot";
+      "head   head"
+      "hero   grid"
+      "events events"
+      "foot   foot";
     column-gap: 20px;
     row-gap: 8px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
@@ -223,5 +307,6 @@
   }
   .ups-tile { padding: 11px 12px 10px; }
   .ups-tile dd { font-size: 19px; }
+  .ups-events { grid-area: events; }
   .ups-foot { grid-area: foot; }
 }

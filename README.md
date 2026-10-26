@@ -134,6 +134,7 @@ Se o nobreak é monitorado pelo **Supervise** (Ragtech), o Aurora mostra os dado
 - **Selo de bateria** no cabeçalho com a carga — verde na rede, âmbar com ⚡ na bateria, vermelho em falha. Toque para ver tudo.
 - **Tela do nobreak**: carga, modo (rede/bateria), alertas e tensões de entrada/saída, frequência, consumo (% e VA), bateria, temperatura, corrente e contagem de desligamento.
 - **Avisos** quando falta energia (nobreak vai para a bateria) e quando ela volta.
+- **Quedas de energia**: o histórico do Supervise vira uma lista de quedas — quando começou, quanto durou e até quanto a bateria desceu —, com um resumo ("Última queda: ontem às 22:10, durou 5 min") e o registro completo de eventos em "Todos os eventos".
 
 Configure no `config.json`:
 ```jsonc

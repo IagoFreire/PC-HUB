@@ -84,6 +84,10 @@ export function createApp({ config, monitor, publicDir, touch = null, ups = null
       if (!ups) throw new HttpError(404, 'Nobreak não configurado.');
       return [200, await ups.getStatus()];
     },
+    'GET /api/ups/events': async () => {
+      if (!ups) throw new HttpError(404, 'Nobreak não configurado.');
+      return [200, await ups.getEvents()];
+    },
     'POST /api/wake': async () => {
       await monitor.wake();
       log(`magic packet enviado para ${config.pc.mac} via ${config.pc.broadcast}`);

@@ -1,6 +1,10 @@
 // Nobreak: selo de bateria no cabeçalho + tela com os detalhes (dados do Supervise via /api/ups).
 
 const VIEW_POLL_MS = 2000;
+const EVENTS_POLL_MS = 30_000;
+const MAX_OUTAGES_SHOWN = 10;
+const RECENT_DAYS = 7;
+const DAY_MS = 86_400_000;
 const SHEET_FALLBACK_MS = 600;
 const GAUGE_RADIUS = 52;
 const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS;
@@ -29,6 +33,52 @@ function formatCountdown(seconds) {
   if (seconds === null || seconds === undefined) return 'Inativo';
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
+
+const timeFormat = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const dateFormat = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+function startOfDay(ms) {
+  const date = new Date(ms);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+/** "Hoje", "Ontem" ou "qua., 22/10". */
+function dayLabel(ms, nowMs = Date.now()) {
+  const days = Math.round((startOfDay(nowMs) - startOfDay(ms)) / DAY_MS);
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  return dateFormat.format(ms);
+}
+
+function formatDuration(totalSec) {
+  if (totalSec === null || totalSec === undefined) return '—';
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = Math.round(totalSec % 60);
+  if (hours > 0) return minutes ? `${hours} h ${minutes} min` : `${hours} h`;
+  if (minutes > 0) return seconds ? `${minutes} min ${seconds} s` : `${minutes} min`;
+  return `${seconds} s`;
+}
+
+function outageSummary(outages, nowMs = Date.now()) {
+  if (outages.length === 0) return 'Nenhuma queda de energia registrada.';
+  const [latest] = outages;
+  if (latest.ongoing) return `Sem energia desde ${timeFormat.format(latest.start)} (${formatDuration((nowMs - latest.start) / 1000)}).`;
+  const recent = outages.filter((o) => nowMs - o.start < RECENT_DAYS * DAY_MS).length;
+  const when = `${dayLabel(latest.start, nowMs).toLowerCase()} às ${timeFormat.format(latest.start)}`;
+  const lasted = latest.durationSec === null ? '' : `, durou ${formatDuration(latest.durationSec)}`;
+  const count = recent > 1 ? ` · ${recent} quedas nos últimos ${RECENT_DAYS} dias` : '';
+  return `Última queda: ${when}${lasted}${count}.`;
+}
+
+/** Cria um elemento com classe e texto (sem innerHTML: os textos vêm de fora). */
+function node(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
 }
 
 /** Cor geral: ok (rede), warn (bateria/aviso), critical (falha), muted (sem dados). */
@@ -70,11 +120,16 @@ export function createUpsPanel({ request, haptic, notify }) {
     temp: $('upsTemp'),
     current: $('upsCurrent'),
     countdown: $('upsCountdown'),
+    outageSummary: $('upsOutageSummary'),
+    outages: $('upsOutages'),
+    log: $('upsLog'),
+    eventsCount: $('upsEventsCount'),
   };
 
   let enabled = true;
   let isOpen = false;
   let timer = null;
+  let eventsTimer = null;
   let lastMode = null;
 
   el.gaugeArc.style.strokeDasharray = `${GAUGE_CIRCUMFERENCE}`;
@@ -126,12 +181,56 @@ export function createUpsPanel({ request, haptic, notify }) {
       : 'Supervise';
   }
 
+  function renderOutage(outage, nowMs) {
+    const item = node('li', `ups-outage${outage.ongoing ? ' is-ongoing' : ''}`);
+    const when = node('span', 'ups-outage-when');
+    when.append(node('b', '', dayLabel(outage.start, nowMs)), ` às ${timeFormat.format(outage.start)}`);
+    const duration = outage.ongoing
+      ? `em andamento · ${formatDuration((nowMs - outage.start) / 1000)}`
+      : formatDuration(outage.durationSec);
+    const detail = outage.lowestBattery === null || outage.lowestBattery === undefined
+      ? (outage.end ? '' : 'sem registro da volta')
+      : `bateria chegou a ${outage.lowestBattery}%`;
+    item.append(when, node('span', 'ups-outage-duration', duration), node('span', 'ups-outage-detail', detail));
+    return item;
+  }
+
+  function renderEvents(data) {
+    const nowMs = Date.now();
+    if (!data.available) {
+      el.outageSummary.textContent = data.error ?? 'Não consegui ler os eventos.';
+      return;
+    }
+    el.outageSummary.textContent = outageSummary(data.outages, nowMs);
+    el.outages.replaceChildren(...data.outages.slice(0, MAX_OUTAGES_SHOWN).map((o) => renderOutage(o, nowMs)));
+    el.eventsCount.textContent = `(${data.totalEvents})`;
+    el.log.replaceChildren(...data.events.map((event) => {
+      const item = node('li', 'ups-log-item');
+      item.dataset.kind = event.kind;
+      item.append(
+        node('span', 'ups-log-when', `${dayLabel(event.at, nowMs)} ${timeFormat.format(event.at)}`),
+        node('span', 'ups-log-text', event.text),
+      );
+      return item;
+    }));
+  }
+
+  async function loadEvents() {
+    try {
+      renderEvents(await request('ups/events'));
+    } catch (err) {
+      if (err.status !== 401) renderEvents({ available: false, error: err.message });
+    }
+  }
+
   // Avisa na troca rede ↔ bateria (falta e volta de energia).
   function announce(snapshot) {
     if (!snapshot.available) return;
     if (lastMode && lastMode !== snapshot.mode) {
       if (snapshot.mode === 'battery') notify('⚡ Faltou energia: o nobreak está na bateria');
       else if (lastMode === 'battery' && snapshot.mode === 'line') notify('Energia voltou: nobreak de volta na rede');
+      // Uma queda começou ou terminou: atualiza a lista de quedas na hora.
+      if (isOpen) loadEvents();
     }
     lastMode = snapshot.mode;
   }
@@ -173,12 +272,17 @@ export function createUpsPanel({ request, haptic, notify }) {
     el.view.hidden = false;
     requestAnimationFrame(() => requestAnimationFrame(() => el.view.classList.add('is-open')));
     refresh().catch(() => {}).finally(schedule);
+    loadEvents();
+    eventsTimer = setInterval(() => {
+      if (!document.hidden) loadEvents();
+    }, EVENTS_POLL_MS);
   }
 
   function close() {
     if (!isOpen) return;
     isOpen = false;
     clearTimeout(timer);
+    clearInterval(eventsTimer);
     el.view.classList.remove('is-open');
     const hide = () => {
       if (!isOpen) el.view.hidden = true;
