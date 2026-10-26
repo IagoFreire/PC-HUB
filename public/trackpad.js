@@ -302,7 +302,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
     airLocked = locked;
     el.view.classList.toggle('air-locked', locked);
     el.airLock.setAttribute('aria-pressed', String(locked));
-    el.airLock.lastElementChild.textContent = locked ? 'Ligado — tocar para soltar' : 'Manter ligado';
+    el.airLock.lastElementChild.textContent = locked ? 'Ligado' : 'Manter ligado';
   }
 
   el.airLock.addEventListener('click', () => {
