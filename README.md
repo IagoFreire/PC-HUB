@@ -144,7 +144,7 @@ Configure no `config.json`:
   "powerFactor": 0.95                // opcional: fator de potência usado para estimar os watts
 }
 ```
-**Consumo em watts:** o nobreak não mede watts — só tensão e corrente da saída. O Aurora calcula a potência aparente (V × A = VA, medida) e estima os watts com o fator de potência: **0,95** por padrão, o típico de fontes de PC com PFC ativo (80 Plus). Para calibrar, compare com uma tomada medidora de energia e ajuste `powerFactor`.
+**Consumo em watts:** o nobreak não mede watts — só tensão e corrente da saída. O Aurora calcula a potência aparente (V × A = VA, medida) e estima os watts com o fator de potência: **0,95** por padrão, o típico de fontes de PC com PFC ativo (80 Plus). Para calibrar, compare com uma tomada medidora de energia e ajuste `powerFactor` = **watts da tomada ÷ VA do nobreak**, lidos no mesmo momento. Com a tomada entre a parede e o nobreak, o resultado passa a mostrar o consumo real da parede (o que vai para a conta de luz, já com o consumo do próprio nobreak). Exemplo real: tomada 174,8 W ÷ nobreak 337 VA = **0,52** — o sensor de corrente do nobreak lê bem acima do real, e a calibração corrige isso.
 O Aurora só **lê** os dados — nunca usa os comandos de shutdown do Supervise. O nome mostrado é o que está cadastrado no Supervise.
 
 ## HTTPS (necessário para o air mouse)

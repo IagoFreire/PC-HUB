@@ -29,12 +29,6 @@ function fmt(value, digits, unit = '') {
   return `${formatters.get(digits).format(value)}${unit}`;
 }
 
-function formatCountdown(seconds) {
-  if (seconds === null || seconds === undefined) return 'Inativo';
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-}
-
 const timeFormat = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
@@ -114,12 +108,12 @@ export function createUpsPanel({ request, haptic, notify }) {
     vIn: $('upsVIn'),
     vOut: $('upsVOut'),
     freq: $('upsFreq'),
+    watts: $('upsWatts'),
     load: $('upsLoad'),
-    loadVA: $('upsLoadVA'),
+    nominal: $('upsNominal'),
     vBat: $('upsVBat'),
     temp: $('upsTemp'),
     current: $('upsCurrent'),
-    countdown: $('upsCountdown'),
     outageSummary: $('upsOutageSummary'),
     outages: $('upsOutages'),
     log: $('upsLog'),
@@ -168,16 +162,13 @@ export function createUpsPanel({ request, haptic, notify }) {
     el.vIn.textContent = fmt(input.voltage, 1, ' V');
     el.vOut.textContent = fmt(output.voltage, 1, ' V');
     el.freq.textContent = fmt(output.frequency, 1, ' Hz');
-    // Watts são estimados (V × I × fator de potência): o nobreak só mede tensão e corrente.
-    el.load.textContent = output.watts === null ? fmt(output.loadPercent, 0, '%') : `≈ ${fmt(output.watts, 0, ' W')}`;
-    el.loadVA.textContent = [
-      output.loadPercent === null ? null : `${fmt(output.loadPercent, 0, '%')} da capacidade`,
-      output.apparentVA === null ? null : `${fmt(output.apparentVA, 0)} VA`,
-    ].filter(Boolean).join(' · ');
+    // Watts são estimados (V × I × fator de calibração): o nobreak só mede tensão e corrente.
+    el.watts.textContent = output.watts === null ? '—' : `≈ ${fmt(output.watts, 0, ' W')}`;
+    el.load.textContent = fmt(output.loadPercent, 0, '%');
+    el.nominal.textContent = output.nominalVA === null ? '' : `de ${fmt(output.nominalVA, 0)} VA`;
     el.vBat.textContent = fmt(battery.voltage, 1, ' V');
     el.temp.textContent = fmt(snapshot.temperature, 0, ' °C');
     el.current.textContent = fmt(output.current, 2, ' A');
-    el.countdown.textContent = formatCountdown(snapshot.shutdownCountdownSec);
 
     const updated = snapshot.updatedAt ? new Date(snapshot.updatedAt) : null;
     el.foot.textContent = updated && !Number.isNaN(updated.getTime())
