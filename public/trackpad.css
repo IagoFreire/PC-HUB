@@ -204,6 +204,54 @@
 }
 .pad-view.air-mode .pad-surface.is-touching .pad-hint-air { opacity: .35; }
 
+/* "Manter ligado": o cursor segue o celular sem precisar segurar a tela. */
+.pad-hint-locked,
+.pad-air-lock { display: none; }
+.pad-view.air-mode .pad-air-lock { display: flex; }
+.pad-view.air-locked .pad-hint-air { display: none; }
+.pad-view.air-locked .pad-hint-locked { display: block; }
+.pad-view.air-locked .pad-surface::after {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1.5px rgba(94, 242, 192, .55), inset 0 0 80px rgba(94, 242, 192, .14);
+}
+.pad-view.kbd-open .pad-air-lock { display: none; }
+
+.pad-air-lock {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 14px;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--glass-hi);
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  cursor: pointer;
+  transition: background var(--fast) ease, color var(--fast) ease, transform var(--fast) ease;
+}
+.pad-air-lock svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Cadeado aberto quando desligado; fecha ao ligar. */
+.pad-air-lock .lock-shackle { transform: translate(3px, -1px) rotate(12deg); transform-origin: 15.5px 10.5px; transition: transform var(--fast) ease; }
+.pad-air-lock[aria-pressed="true"] .lock-shackle { transform: none; }
+.pad-air-lock[aria-pressed="true"] {
+  background: rgba(94, 242, 192, .2);
+  color: var(--aurora-green);
+}
+.pad-air-lock:active { transform: translateX(-50%) scale(.95); }
+.pad-air-lock:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
 /* Prévia do que está sendo digitado (só com o teclado aberto). Mostra o fim da linha atual. */
 .pad-echo {
   position: absolute;

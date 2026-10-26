@@ -46,6 +46,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
     back: $('padBack'),
     kbdBtn: $('padKbdBtn'),
     airBtn: $('padAirBtn'),
+    airLock: $('padAirLock'),
     keyRow: $('padKeyRow'),
     input: $('padInput'),
     echo: $('padEcho'),
@@ -62,6 +63,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
   // Air mouse: com o modo ligado, segurar a superfície ("embreagem") faz o giroscópio mover o cursor.
   let airMode = false;
   let airClutch = false;
+  let airLocked = false;   // "Manter ligado": segue o celular sem precisar segurar
   let lastMotionAt = 0;
   let motionSeen = false;
   const heldButtons = new Set();
@@ -166,7 +168,11 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
 
   /* ---------- Gestos ---------- */
 
+  // O botão "Manter ligado" fica dentro da superfície; o toque nele não é gesto de trackpad.
+  const isOnControl = (event) => Boolean(event.target.closest?.('.pad-air-lock'));
+
   function onTouchStart(event) {
+    if (isOnControl(event)) return;
     event.preventDefault();
     const now = event.timeStamp;
     if (!gesture) {
@@ -190,6 +196,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
   }
 
   function onTouchMove(event) {
+    if (isOnControl(event)) return;
     event.preventDefault();
     if (!gesture) return;
     const ids = [...event.targetTouches].map((t) => t.identifier).filter((id) => gesture.points.has(id));
@@ -225,6 +232,7 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
   }
 
   function onTouchEnd(event) {
+    if (isOnControl(event)) return;
     event.preventDefault();
     if (!gesture) return;
     for (const touch of event.changedTouches) gesture.points.delete(touch.identifier);
@@ -265,7 +273,9 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
     const now = event.timeStamp;
     const dt = lastMotionAt ? Math.min((now - lastMotionAt) / 1000, MAX_MOTION_DT_S) : 0;
     lastMotionAt = now;
-    if (!airClutch) return;
+    // Travado: segue sempre, exceto enquanto dois dedos rolam (senão o cursor anda junto).
+    const following = airLocked ? !(gesture && gesture.maxTouches > 1) : airClutch;
+    if (!following) return;
     const { dx, dy } = motionToCursor(event.rotationRate, event.accelerationIncludingGravity, dt, ROTATION_LAYOUT);
     if (dx || dy) queue('m', dx, dy);
   }
@@ -288,9 +298,22 @@ export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {
     return null;
   }
 
+  function setAirLocked(locked) {
+    airLocked = locked;
+    el.view.classList.toggle('air-locked', locked);
+    el.airLock.setAttribute('aria-pressed', String(locked));
+    el.airLock.lastElementChild.textContent = locked ? 'Ligado — tocar para soltar' : 'Manter ligado';
+  }
+
+  el.airLock.addEventListener('click', () => {
+    haptic('tap');
+    setAirLocked(!airLocked);
+  });
+
   function applyAirMode(on) {
     airMode = on;
     airClutch = false;
+    if (!on) setAirLocked(false);
     el.view.classList.toggle('air-mode', on);
     el.airBtn.setAttribute('aria-pressed', String(on));
     if (on) {
