@@ -111,6 +111,14 @@ Com o PC ligado, toque em **Trackpad e teclado** no cartão de baixo.
 | Botões **Esquerdo / Direito** | Segurar = botão apertado, para arrastar com outro dedo |
 | Ícone de teclado | Abre o teclado do iPhone e digita no PC; aparecem também Esc, Tab, setas, ⌫ e Enter |
 
+### Air mouse (apontar com o celular)
+No trackpad, toque no ícone de **celular com ondas** (ao lado do teclado). Com o modo ligado:
+- **Segure** a superfície e aponte/gire o celular: o cursor segue o movimento. **Soltou, parou** — dá para reposicionar a mão sem mexer o cursor.
+- **Toque rápido** = clique; **dois dedos** continuam rolando; os botões Esquerdo/Direito funcionam igual.
+- Funciona com o celular deitado na mão (como um controle remoto) ou em pé, sem calibrar.
+
+O air mouse **precisa do Aurora em HTTPS** (próxima seção): o iPhone só libera o giroscópio para sites seguros. Na primeira vez ele pede permissão de "Movimento e Orientação".
+
 O trackpad só funciona com você **logado no Windows**: na tela de bloqueio o Windows não aceita mouse/teclado simulado. Sua conta do Windows precisa ser **administradora** — o Aurora Touch roda elevado (para alcançar também janelas de administrador) e só assim lê o segredo, que fica fora do alcance de programas comuns.
 
 ### Segurança, em resumo
@@ -119,6 +127,22 @@ O trackpad só funciona com você **logado no Windows**: na tela de bloqueio o W
 - Notebook ↔ PC usam o `agentSecret`: o agente exige o segredo em cada pedido, e o Aurora Touch faz um desafio HMAC a cada conexão (o segredo nunca trafega). As portas `7777`/`7778` só aceitam a rede local.
 
 ---
+
+## HTTPS (necessário para o air mouse)
+
+O iPhone só entrega os sensores de movimento a páginas HTTPS. O Aurora usa uma **autoridade certificadora só da sua casa**: você gera no notebook e diz ao iPhone para confiar nela, uma vez.
+
+1. **No notebook** (Windows, PowerShell normal, na pasta do projeto):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\tools\make-cert.ps1
+   ```
+   Gera `certs\aurora-ca.cer` e `certs\aurora.pfx` e adiciona a seção `tls` no `config.json`. Reinicie o servidor (`npm start`).
+2. **No iPhone, Safari:** abra `http://<ip-do-notebook>:8080/aurora-ca.cer` → **Permitir** o download.
+3. **Ajustes → Perfil Baixado → Instalar.** (Confira se a impressão digital SHA-256 bate com a que o script mostrou.)
+4. **Ajustes → Geral → Sobre → Ajustes de Confiança de Certificados** → ligue **Aurora Local CA**.
+5. Abra `https://<ip-do-notebook>:8443`, entre com o código e **adicione à Tela de Início de novo** (remova o atalho antigo em `http://` — é outro endereço, por isso o código é pedido de novo).
+
+Com HTTPS ligado, a porta `8080` só redireciona para o `https://…:8443` e serve o certificado. Se o IP do notebook mudar, rode o script de novo (e reinstale o perfil). O certificado do servidor vale 800 dias.
 
 ## `config.json`
 
@@ -157,6 +181,9 @@ Não exponha a porta no roteador. Use o [Tailscale](https://tailscale.com) no no
 | "Muitas tentativas erradas" | 10 códigos errados seguidos; espere 15 minutos |
 | Trackpad: "Não consegui conectar ao Aurora Touch" | Ninguém logado no Windows, ou a tarefa *Aurora Touch* não está rodando — veja `%LOCALAPPDATA%\Aurora\touch.log` |
 | Trackpad: "recusou o segredo" | `agentSecret` diferente entre `config.json` e o PC → rode o instalador de novo |
+| Air mouse: "precisa do Aurora em HTTPS" | Siga a seção HTTPS e abra o app pelo endereço `https://…:8443` |
+| Air mouse: "Acesso ao movimento negado" | Ajustes → Apps → Safari → Movimento e Orientação → ligar; depois feche e reabra o app |
+| Safari diz "conexão não é privada" | O perfil da CA não foi instalado ou não foi marcado como confiável (passos 3 e 4) |
 | Trackpad não mexe em janelas de administrador | O Aurora Touch precisa rodar elevado: reinstale com o PowerShell como Administrador |
 
 ## Desenvolvimento

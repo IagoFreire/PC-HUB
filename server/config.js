@@ -6,6 +6,7 @@ const MIN_AGENT_SECRET_LENGTH = 16;
 const DEFAULT_PORT = 8080;
 const DEFAULT_AGENT_PORT = 7777;
 const DEFAULT_TOUCH_PORT = 7778;
+const DEFAULT_TLS_PORT = 8443;
 
 export function normalizeMac(mac) {
   const hex = String(mac ?? '').replace(/[:\-.\s]/g, '');
@@ -26,6 +27,17 @@ function isPort(value) {
 /** Broadcast de uma rede /24 — o caso de quase toda rede doméstica. */
 export function deriveBroadcast(ip) {
   return [...ip.split('.').slice(0, 3), '255'].join('.');
+}
+
+/** HTTPS é opcional (o air mouse precisa dele: o iPhone só libera sensores em HTTPS). */
+function validateTls(tls, httpPort, errors) {
+  if (tls === undefined || tls === null) return null;
+  const port = tls.port ?? DEFAULT_TLS_PORT;
+  if (!isPort(port) || port === httpPort) errors.push('tls.port precisa ser uma porta válida e diferente de "port"');
+  if (typeof tls.pfx !== 'string' || !tls.pfx) errors.push('tls.pfx precisa apontar para o arquivo .pfx (gere com tools/make-cert.ps1)');
+  if (typeof tls.passphrase !== 'string') errors.push('tls.passphrase precisa ser texto');
+  if (tls.ca !== undefined && tls.ca !== null && typeof tls.ca !== 'string') errors.push('tls.ca precisa ser o caminho do .cer');
+  return Object.freeze({ port, pfx: tls.pfx, passphrase: tls.passphrase, ca: tls.ca ?? null });
 }
 
 export function validateConfig(raw) {
@@ -55,6 +67,7 @@ export function validateConfig(raw) {
   if (typeof pc.agentSecret !== 'string' || pc.agentSecret.length < MIN_AGENT_SECRET_LENGTH) {
     errors.push(`pc.agentSecret precisa ter pelo menos ${MIN_AGENT_SECRET_LENGTH} caracteres`);
   }
+  const tls = validateTls(raw?.tls, port, errors);
 
   if (errors.length > 0) {
     throw new Error(`Configuração inválida:\n  - ${errors.join('\n  - ')}`);
@@ -64,6 +77,7 @@ export function validateConfig(raw) {
     port,
     host: raw.host ?? '0.0.0.0',
     accessToken: raw.accessToken,
+    tls,
     pc: Object.freeze({
       name: typeof pc.name === 'string' && pc.name.trim() ? pc.name.trim() : 'Meu PC',
       mac,

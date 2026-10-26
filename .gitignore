@@ -1,4 +1,5 @@
 config.json
+certs/
 node_modules/
 agent/agent.secret
 agent/agent.log*

@@ -47,6 +47,19 @@ test('loadConfig lê JSON com BOM e explica arquivo ausente ou inválido', () =>
   assert.throws(() => loadConfig(path.join(dir, 'nao-existe.json')), /config.example.json/);
 });
 
+test('validateConfig aceita tls opcional com porta padrão 8443', () => {
+  const config = validateConfig({ ...validRaw(), tls: { pfx: 'certs/aurora.pfx', passphrase: 'x' } });
+  assert.deepEqual({ ...config.tls }, { port: 8443, pfx: 'certs/aurora.pfx', passphrase: 'x', ca: null });
+  assert.equal(validateConfig(validRaw()).tls, null);
+});
+
+test('validateConfig recusa tls incompleto ou na mesma porta do http', () => {
+  assert.throws(
+    () => validateConfig({ ...validRaw(), port: 8443, tls: { port: 8443, passphrase: 1 } }),
+    (err) => ['tls.pfx', 'tls.passphrase', 'tls.port'].every((field) => err.message.includes(field)),
+  );
+});
+
 test('validateConfig lista todos os problemas de uma vez', () => {
   assert.throws(
     () => validateConfig({ accessToken: '123', port: 70000, pc: { mac: 'x', ip: '999.1.1.1', agentSecret: 'curto' } }),

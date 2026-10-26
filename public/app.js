@@ -243,6 +243,7 @@ const trackpad = createTrackpad({
   getToken: () => session.token,
   haptic,
   onAuthError: (message) => openGate(message),
+  notify: (message) => toast(message),
 });
 
 function toast(message) {

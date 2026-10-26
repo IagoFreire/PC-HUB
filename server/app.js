@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import { createAuthGuard } from './auth.js';
 import { HttpError } from './http-error.js';
 import { serveStatic } from './static.js';
@@ -73,7 +74,8 @@ async function readJson(req) {
 
 export const defaultLog = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
 
-export function createApp({ config, monitor, publicDir, touch = null, log = defaultLog }) {
+/** tls: { pfx, passphrase } para servir em HTTPS (necessário para o air mouse no iPhone). */
+export function createApp({ config, monitor, publicDir, touch = null, tls = null, log = defaultLog }) {
   const guard = createAuthGuard(config.accessToken);
 
   const routes = {
@@ -125,7 +127,7 @@ export function createApp({ config, monitor, publicDir, touch = null, log = defa
     throw new HttpError(404, 'Não encontrado.');
   }
 
-  const server = http.createServer((req, res) => {
+  const onRequest = (req, res) => {
     handle(req, res).catch((err) => {
       const status = err instanceof HttpError ? err.status : 500;
       if (status === 500) log(`erro interno em ${req.method} ${req.url}: ${err.stack ?? err}`);
@@ -135,7 +137,8 @@ export function createApp({ config, monitor, publicDir, touch = null, log = defa
       }
       sendJson(res, status, { error: status === 500 ? 'Erro interno do servidor.' : err.message });
     });
-  });
+  };
+  const server = tls ? https.createServer(tls, onRequest) : http.createServer(onRequest);
 
   let touchClients = 0;
   const pendingByIp = new Map();

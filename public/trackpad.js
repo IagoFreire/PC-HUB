@@ -1,4 +1,5 @@
 // Trackpad e teclado: gestos na tela do celular viram mouse e teclado no PC (via WebSocket).
+import { gravitySignFor, MAX_MOTION_DT_S, motionToCursor } from './air-mouse.js';
 
 const TAP_MAX_MS = 220;
 const TWO_FINGER_TAP_MAX_MS = 320;
@@ -14,6 +15,8 @@ const RECONNECT_AFTER_ERROR_MS = 4000;
 const SHEET_FALLBACK_MS = 600;
 const KEYBOARD_SENTINEL = ' ';
 const MAX_ECHO_CHARS = 120;
+const MOTION_CHECK_MS = 1500;
+const GRAVITY_SIGN = gravitySignFor(globalThis.DeviceMotionEvent);
 
 const HARDWARE_KEYS = Object.freeze({
   Enter: 'enter',
@@ -33,7 +36,7 @@ function centroid(points) {
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
-export function createTrackpad({ getToken, haptic, onAuthError }) {
+export function createTrackpad({ getToken, haptic, onAuthError, notify = () => {} }) {
   const $ = (id) => document.getElementById(id);
   const el = {
     view: $('padView'),
@@ -42,6 +45,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     statusText: $('padStatusText'),
     back: $('padBack'),
     kbdBtn: $('padKbdBtn'),
+    airBtn: $('padAirBtn'),
     keyRow: $('padKeyRow'),
     input: $('padInput'),
     echo: $('padEcho'),
@@ -55,6 +59,11 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
   let gesture = null;
   let lastTap = null;
   let frame = 0;
+  // Air mouse: com o modo ligado, segurar a superfície ("embreagem") faz o giroscópio mover o cursor.
+  let airMode = false;
+  let airClutch = false;
+  let lastMotionAt = 0;
+  let motionSeen = false;
   const heldButtons = new Set();
   // Acumuladores de movimento/rolagem entre frames (frações de pixel ficam para o próximo).
   const pending = { m: { x: 0, y: 0 }, s: { x: 0, y: 0 } };
@@ -168,7 +177,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
         lastAt: now,
         maxTouches: 0,
         travel: 0,
-        dragArmed: Boolean(nearLastTap),
+        dragArmed: Boolean(nearLastTap) && !airMode,
         dragging: false,
         points: new Map(),
       };
@@ -176,6 +185,8 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     }
     for (const touch of event.changedTouches) gesture.points.set(touch.identifier, point(touch));
     gesture.maxTouches = Math.max(gesture.maxTouches, event.targetTouches.length);
+    // Um dedo segurando = apontar; o segundo dedo vira rolagem e solta a "embreagem".
+    airClutch = airMode && gesture.maxTouches === 1;
   }
 
   function onTouchMove(event) {
@@ -202,6 +213,8 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     }
     // Sobrou um dedo de um gesto de dois: não mexe o cursor de surpresa.
     if (gesture.maxTouches > 1) return;
+    // No air mouse quem move o cursor é o giroscópio, não o dedo.
+    if (airMode) return;
 
     if (gesture.dragArmed && !gesture.dragging && gesture.travel > TAP_SLOP_PX) {
       gesture.dragging = true;
@@ -219,6 +232,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
 
     const finished = gesture;
     gesture = null;
+    airClutch = false;
     el.surface.classList.remove('is-touching');
 
     if (finished.dragging) {
@@ -243,6 +257,68 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
   el.surface.addEventListener('touchmove', onTouchMove, { passive: false });
   el.surface.addEventListener('touchend', onTouchEnd, { passive: false });
   el.surface.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+  /* ---------- Air mouse ---------- */
+
+  function onMotion(event) {
+    motionSeen = true;
+    const now = event.timeStamp;
+    const dt = lastMotionAt ? Math.min((now - lastMotionAt) / 1000, MAX_MOTION_DT_S) : 0;
+    lastMotionAt = now;
+    if (!airClutch) return;
+    const { dx, dy } = motionToCursor(event.rotationRate, event.accelerationIncludingGravity, dt, GRAVITY_SIGN);
+    if (dx || dy) queue('m', dx, dy);
+  }
+
+  /** Pede acesso aos sensores; devolve uma mensagem de erro ou null. Precisa vir de um toque. */
+  async function enableMotion() {
+    if (!('DeviceMotionEvent' in window)) return 'Este navegador não tem sensores de movimento.';
+    if (!window.isSecureContext) {
+      return 'O air mouse precisa do Aurora em HTTPS (o iPhone só libera os sensores assim). Veja "HTTPS" no README.';
+    }
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      try {
+        if (await DeviceMotionEvent.requestPermission() !== 'granted') {
+          return 'Acesso ao movimento negado. Libere em Ajustes › Apps › Safari › Movimento e Orientação.';
+        }
+      } catch {
+        return 'Não consegui pedir acesso aos sensores de movimento.';
+      }
+    }
+    return null;
+  }
+
+  function applyAirMode(on) {
+    airMode = on;
+    airClutch = false;
+    el.view.classList.toggle('air-mode', on);
+    el.airBtn.setAttribute('aria-pressed', String(on));
+    if (on) {
+      lastMotionAt = 0;
+      motionSeen = false;
+      window.addEventListener('devicemotion', onMotion);
+      setTimeout(() => {
+        if (airMode && !motionSeen) notify('Nenhum dado do giroscópio chegou. Este aparelho tem giroscópio?');
+      }, MOTION_CHECK_MS);
+    } else {
+      window.removeEventListener('devicemotion', onMotion);
+    }
+  }
+
+  el.airBtn.addEventListener('click', async () => {
+    haptic('tap');
+    if (airMode) {
+      applyAirMode(false);
+      return;
+    }
+    // requestPermission é chamado aqui dentro, ainda no toque (o iOS exige).
+    const problem = await enableMotion();
+    if (problem) {
+      notify(problem);
+      return;
+    }
+    applyAirMode(true);
+  });
 
   /* ---------- Botões físicos (esquerdo/direito) ---------- */
 
@@ -407,6 +483,7 @@ export function createTrackpad({ getToken, haptic, onAuthError }) {
     if (!isOpen) return;
     isOpen = false;
     el.input.blur();
+    if (airMode) applyAirMode(false);
     disconnect();
     gesture = null;
     el.view.classList.remove('is-open');
