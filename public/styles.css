@@ -85,22 +85,13 @@ button { font: inherit; color: inherit; }
     linear-gradient(180deg, #05060d 0%, #04050a 100%);
 }
 
-/* Topo: véu leve para status bar e cabeçalho lerem nítidos sobre a aurora. */
-.sky::before,
+/* Base: dissolve em --bg exato, sem emenda com a área que o iOS pinta por fora. */
 .sky::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   z-index: 1;
-}
-.sky::before {
-  top: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 96px);
-  background: linear-gradient(180deg, rgba(4, 5, 10, .62) 0%, rgba(4, 5, 10, .32) 55%, rgba(4, 5, 10, 0) 100%);
-}
-/* Base: dissolve em --bg exato, sem emenda com a área que o iOS pinta por fora. */
-.sky::after {
   bottom: 0;
   height: 34vh;
   background: linear-gradient(180deg, rgba(4, 5, 10, 0) 0%, rgba(4, 5, 10, .85) 60%, #04050a 100%);
@@ -174,8 +165,9 @@ button { font: inherit; color: inherit; }
   min-height: 100dvh;
   max-width: 460px;
   margin: 0 auto;
+  /* Folga extra no topo: no iOS 26 o sistema desfoca uma faixa logo abaixo da status bar. */
   padding:
-    calc(env(safe-area-inset-top, 0px) + 10px)
+    calc(env(safe-area-inset-top, 0px) + 26px)
     calc(env(safe-area-inset-right, 0px) + 20px)
     calc(env(safe-area-inset-bottom, 0px) + 22px)
     calc(env(safe-area-inset-left, 0px) + 20px);
@@ -210,8 +202,6 @@ button { font: inherit; color: inherit; }
   border-radius: 50%;
   background: var(--glass);
   box-shadow: inset 0 0 0 0.5px var(--hairline);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
   cursor: pointer;
   transition: transform var(--fast) ease, background var(--fast) ease;
 }
@@ -597,11 +587,17 @@ button { font: inherit; color: inherit; }
   font-weight: 500;
   text-align: center;
   opacity: 0;
+  visibility: hidden;
   transform: translate(-50%, -140%);
-  transition: transform var(--mid) var(--ease-spring), opacity var(--mid) ease;
+  transition: transform var(--mid) var(--ease-spring), opacity var(--mid) ease, visibility 0s linear var(--mid);
   pointer-events: none;
 }
-.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+.toast.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition: transform var(--mid) var(--ease-spring), opacity var(--mid) ease, visibility 0s;
+}
 
 /* ---------- Telas baixas (iPhone SE) ---------- */
 
