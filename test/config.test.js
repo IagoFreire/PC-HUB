@@ -60,6 +60,13 @@ test('validateConfig recusa tls incompleto ou na mesma porta do http', () => {
   );
 });
 
+test('validateConfig aceita ups opcional e normaliza a url', () => {
+  const config = validateConfig({ ...validRaw(), ups: { url: 'http://192.168.0.7:4470/qualquer', id: '0001521C0A' } });
+  assert.deepEqual({ ...config.ups }, { url: 'http://192.168.0.7:4470', id: '0001521C0A' });
+  assert.equal(validateConfig(validRaw()).ups, null);
+  assert.throws(() => validateConfig({ ...validRaw(), ups: { url: 'file:///c:/x', id: '../x' } }), /ups\.url[\s\S]*ups\.id/);
+});
+
 test('validateConfig lista todos os problemas de uma vez', () => {
   assert.throws(
     () => validateConfig({ accessToken: '123', port: 70000, pc: { mac: 'x', ip: '999.1.1.1', agentSecret: 'curto' } }),

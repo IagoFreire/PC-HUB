@@ -128,6 +128,22 @@ O trackpad só funciona com você **logado no Windows**: na tela de bloqueio o W
 
 ---
 
+## Nobreak (Ragtech Supervise)
+
+Se o nobreak é monitorado pelo **Supervise** (Ragtech), o Aurora mostra os dados dele:
+- **Selo de bateria** no cabeçalho com a carga — verde na rede, âmbar com ⚡ na bateria, vermelho em falha. Toque para ver tudo.
+- **Tela do nobreak**: carga, modo (rede/bateria), alertas e tensões de entrada/saída, frequência, consumo (% e VA), bateria, temperatura, corrente e contagem de desligamento.
+- **Avisos** quando falta energia (nobreak vai para a bateria) e quando ela volta.
+
+Configure no `config.json`:
+```jsonc
+"ups": {
+  "url": "http://127.0.0.1:4470",   // endereço do Supervise (127.0.0.1 se ele roda no mesmo notebook do Aurora)
+  "id": "0001521C0A"                 // opcional: sem ele, usa o primeiro nobreak do Supervise
+}
+```
+O Aurora só **lê** os dados — nunca usa os comandos de shutdown do Supervise. O nome mostrado é o que está cadastrado no Supervise.
+
 ## HTTPS (necessário para o air mouse)
 
 O iPhone só entrega os sensores de movimento a páginas HTTPS. O Aurora usa uma **autoridade certificadora só da sua casa**: você gera no notebook e diz ao iPhone para confiar nela, uma vez.

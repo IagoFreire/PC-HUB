@@ -1,4 +1,5 @@
 import { createTrackpad } from './trackpad.js';
+import { createUpsPanel } from './ups.js';
 
 const TOKEN_KEY = 'aurora.token';
 const POLL_MS = 5000;
@@ -78,9 +79,11 @@ async function api(path, { method = 'GET', body, token = session.token } = {}) {
   }
 
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) throw new AuthError(data.error || 'Código de acesso incorreto.');
-  if (res.status === 429) throw new LockedError(data.error || 'Muitas tentativas. Espere alguns minutos.');
-  if (!res.ok) throw new Error(data.error || `O servidor respondeu com erro ${res.status}.`);
+  // O código HTTP vai junto no erro (ex.: o painel do nobreak se esconde num 404).
+  const fail = (ErrorType, message) => Object.assign(new ErrorType(message), { status: res.status });
+  if (res.status === 401) throw fail(AuthError, data.error || 'Código de acesso incorreto.');
+  if (res.status === 429) throw fail(LockedError, data.error || 'Muitas tentativas. Espere alguns minutos.');
+  if (!res.ok) throw fail(Error, data.error || `O servidor respondeu com erro ${res.status}.`);
   return data;
 }
 
@@ -199,7 +202,8 @@ function schedule() {
 
 async function poll() {
   try {
-    const status = await api('status');
+    // O nobreak vem junto, em paralelo; erros dele (fora o de autenticação) ficam no próprio painel.
+    const [status] = await Promise.all([api('status'), upsPanel.refresh()]);
     updateSession({ status, reachable: true });
   } catch (err) {
     if (err instanceof AuthError) {
@@ -243,6 +247,12 @@ const trackpad = createTrackpad({
   getToken: () => session.token,
   haptic,
   onAuthError: (message) => openGate(message),
+  notify: (message) => toast(message),
+});
+
+const upsPanel = createUpsPanel({
+  request: (path) => api(path),
+  haptic,
   notify: (message) => toast(message),
 });
 
@@ -379,6 +389,7 @@ el.logoutBtn.addEventListener('click', () => {
 
 function openGate(message) {
   stopPolling();
+  upsPanel.close();
   tokenStore.clear();
   updateSession({ token: null });
   el.gateError.textContent = message;
@@ -401,6 +412,7 @@ el.gateForm.addEventListener('submit', async (event) => {
     el.gate.hidden = true;
     render();
     schedule();
+    upsPanel.refresh().catch(() => {});  // falha de auth aqui é impossível: o código acabou de ser aceito
   } catch (err) {
     el.gateError.textContent = err instanceof AuthError ? 'Código incorreto. Confira o config.json.' : err.message;
   } finally {

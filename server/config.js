@@ -40,6 +40,26 @@ function validateTls(tls, httpPort, errors) {
   return Object.freeze({ port, pfx: tls.pfx, passphrase: tls.passphrase, ca: tls.ca ?? null });
 }
 
+const UPS_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Nobreak via Supervise (Ragtech) é opcional. */
+function validateUps(ups, errors) {
+  if (ups === undefined || ups === null) return null;
+  let url = null;
+  try {
+    url = new URL(ups.url);
+  } catch {
+    // tratado abaixo
+  }
+  if (!url || !['http:', 'https:'].includes(url.protocol)) {
+    errors.push('ups.url precisa ser o endereço do Supervise (ex: http://127.0.0.1:4470)');
+  }
+  if (ups.id !== undefined && ups.id !== null && !(typeof ups.id === 'string' && UPS_ID_RE.test(ups.id))) {
+    errors.push('ups.id precisa ser o id do nobreak no Supervise (ex: 0001521C0A)');
+  }
+  return Object.freeze({ url: url?.origin ?? null, id: ups.id ?? null });
+}
+
 export function validateConfig(raw) {
   const errors = [];
   const pc = raw?.pc ?? {};
@@ -68,6 +88,7 @@ export function validateConfig(raw) {
     errors.push(`pc.agentSecret precisa ter pelo menos ${MIN_AGENT_SECRET_LENGTH} caracteres`);
   }
   const tls = validateTls(raw?.tls, port, errors);
+  const ups = validateUps(raw?.ups, errors);
 
   if (errors.length > 0) {
     throw new Error(`Configuração inválida:\n  - ${errors.join('\n  - ')}`);
@@ -78,6 +99,7 @@ export function validateConfig(raw) {
     host: raw.host ?? '0.0.0.0',
     accessToken: raw.accessToken,
     tls,
+    ups,
     pc: Object.freeze({
       name: typeof pc.name === 'string' && pc.name.trim() ? pc.name.trim() : 'Meu PC',
       mac,

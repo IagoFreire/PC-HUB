@@ -1,0 +1,227 @@
+/* Nobreak — usa os tokens de styles.css. */
+
+/* ---------- Selo no cabeçalho ---------- */
+
+.top-actions { display: flex; align-items: center; gap: 8px; }
+
+.ups-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 12px 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform var(--fast) ease, background var(--fast) ease, color var(--mid) ease;
+  --tone: var(--ink-3);
+}
+.ups-chip[hidden] { display: none; }
+.ups-chip:active { transform: scale(.94); background: var(--glass-hi); }
+.ups-chip:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.ups-chip[data-tone="ok"] { --tone: var(--aurora-green); color: var(--ink); }
+.ups-chip[data-tone="warn"] { --tone: var(--warm-amber); color: var(--warm-amber); }
+.ups-chip[data-tone="critical"] { --tone: var(--danger); color: #ff8a80; }
+
+.ups-chip svg { flex: none; }
+.ups-chip-shell { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; opacity: .7; }
+.ups-chip-fill { fill: var(--tone); transition: width var(--mid) var(--ease-out); }
+/* Raio aparece só na bateria (energia caiu). */
+.ups-chip-bolt { fill: #04050a; stroke: var(--tone); stroke-width: .8; stroke-linejoin: round; opacity: 0; }
+.ups-chip[data-mode="battery"] .ups-chip-bolt { opacity: 1; }
+
+/* ---------- Tela do nobreak ---------- */
+
+.ups-view {
+  position: fixed;
+  z-index: 25;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 22px)
+    calc(env(safe-area-inset-right, 0px) + 16px)
+    calc(env(safe-area-inset-bottom, 0px) + 16px)
+    calc(env(safe-area-inset-left, 0px) + 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(4, 5, 10, .62);
+  -webkit-backdrop-filter: blur(34px) saturate(150%);
+  backdrop-filter: blur(34px) saturate(150%);
+  transform: translateX(100%);
+  transition: transform var(--mid) var(--ease-out);
+  --tone: var(--ink-3);
+}
+.ups-view[hidden] { display: none; }
+.ups-view.is-open { transform: none; }
+.ups-view[data-tone="ok"] { --tone: var(--aurora-green); }
+.ups-view[data-tone="warn"] { --tone: var(--warm-amber); }
+.ups-view[data-tone="critical"] { --tone: var(--danger); }
+
+.ups-view .pad-head { flex: none; }
+.ups-view .pad-title { visibility: visible; }
+
+/* Destaque: medidor de carga + modo */
+.ups-hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 8px 4px 4px;
+}
+
+.ups-gauge {
+  position: relative;
+  flex: none;
+  width: clamp(120px, 36vw, 150px);
+  aspect-ratio: 1;
+  --level: var(--aurora-green);
+}
+.ups-gauge[data-level="mid"] { --level: var(--warm-amber); }
+.ups-gauge[data-level="low"] { --level: var(--danger); }
+.ups-gauge[data-level="unknown"] { --level: var(--ink-3); }
+
+.ups-gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.ups-gauge circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+.ups-gauge-track { stroke: rgba(255, 255, 255, .07); }
+.ups-gauge-arc {
+  stroke: var(--level);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--level) 55%, transparent));
+  transition: stroke-dashoffset 900ms var(--ease-out), stroke var(--mid) ease;
+}
+
+.ups-gauge-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+.ups-gauge-value {
+  font-family: var(--font-round);
+  font-size: clamp(28px, 9vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ups-gauge-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ups-summary { min-width: 0; }
+.ups-summary .eyebrow { margin-bottom: 4px; }
+.ups-mode {
+  margin: 0;
+  font-family: var(--font-round);
+  font-size: clamp(26px, 8vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--tone);
+  transition: color var(--mid) ease;
+}
+.ups-alert { margin: 6px 0 0; font-size: 14px; line-height: 1.35; color: var(--ink-2); }
+.ups-view[data-tone="critical"] .ups-alert { color: #ff8a80; }
+
+/* Grade de valores */
+.ups-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--hairline);
+  box-shadow: 0 20px 40px -24px rgba(0, 0, 0, .9);
+}
+
+.ups-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px 16px 13px;
+  background: rgba(16, 18, 28, .92);
+}
+.ups-tile dt {
+  order: 2;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ups-tile dd {
+  order: 1;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ups-tile small {
+  order: 3;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.ups-foot {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+/* ---------- Celular na horizontal ---------- */
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .ups-chip { height: 32px; }
+
+  .ups-view {
+    max-width: none;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head head"
+      "hero grid"
+      "foot foot";
+    column-gap: 20px;
+    row-gap: 8px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  }
+  .ups-view .pad-head { grid-area: head; height: 38px; }
+  .ups-hero {
+    grid-area: hero;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 0;
+    text-align: center;
+  }
+  .ups-gauge { width: min(36vh, 132px); }
+  .ups-mode { font-size: 24px; }
+  .ups-grid {
+    grid-area: grid;
+    align-self: center;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .ups-tile { padding: 11px 12px 10px; }
+  .ups-tile dd { font-size: 19px; }
+  .ups-foot { grid-area: foot; }
+}

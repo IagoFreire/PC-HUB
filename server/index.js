@@ -7,6 +7,7 @@ import { loadConfig } from './config.js';
 import { createPcMonitor } from './pc.js';
 import { CA_DOWNLOAD_PATH, createRedirectServer } from './redirect.js';
 import { createTouchRelay } from './touch.js';
+import { createUpsMonitor } from './ups.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -43,9 +44,11 @@ const touch = createTouchRelay({
   log: defaultLog,
 });
 
+const ups = config.ups ? createUpsMonitor(config.ups) : null;
+
 let server;
 try {
-  server = createApp({ config, monitor, touch, tls, publicDir: path.join(root, 'public') });
+  server = createApp({ config, monitor, touch, ups, tls, publicDir: path.join(root, 'public') });
 } catch (err) {
   fail(`Não consegui carregar o certificado HTTPS (senha ou arquivo errado?): ${err.message}`);
 }

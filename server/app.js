@@ -75,11 +75,15 @@ async function readJson(req) {
 export const defaultLog = (message) => console.log(`[${new Date().toISOString()}] ${message}`);
 
 /** tls: { pfx, passphrase } para servir em HTTPS (necessário para o air mouse no iPhone). */
-export function createApp({ config, monitor, publicDir, touch = null, tls = null, log = defaultLog }) {
+export function createApp({ config, monitor, publicDir, touch = null, ups = null, tls = null, log = defaultLog }) {
   const guard = createAuthGuard(config.accessToken);
 
   const routes = {
     'GET /api/status': async () => [200, await monitor.getStatus()],
+    'GET /api/ups': async () => {
+      if (!ups) throw new HttpError(404, 'Nobreak não configurado.');
+      return [200, await ups.getStatus()];
+    },
     'POST /api/wake': async () => {
       await monitor.wake();
       log(`magic packet enviado para ${config.pc.mac} via ${config.pc.broadcast}`);

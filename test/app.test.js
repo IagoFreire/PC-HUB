@@ -77,6 +77,32 @@ test('POST /api/power repassa erros de validação e JSON inválido', async () =
   assert.equal(huge.status, 413);
 });
 
+test('GET /api/ups dá 404 quando o nobreak não está configurado', async () => {
+  const res = await fetch(`${base}/api/ups`, { headers: auth });
+  assert.equal(res.status, 404);
+  assert.match((await res.json()).error, /Nobreak/);
+});
+
+test('GET /api/ups exige o código e devolve o retrato do nobreak', async () => {
+  const withUps = createApp({
+    config: { accessToken: TOKEN, pc: {} },
+    monitor,
+    ups: { getStatus: async () => ({ available: true, mode: 'line', battery: { charge: 100 } }) },
+    publicDir,
+    log: () => {},
+  });
+  await new Promise((resolve) => withUps.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${withUps.address().port}/api/ups`;
+  try {
+    assert.equal((await fetch(url)).status, 401);
+    const res = await fetch(url, { headers: auth });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).battery.charge, 100);
+  } finally {
+    await new Promise((resolve) => withUps.close(resolve));
+  }
+});
+
 test('rota de API desconhecida dá 404', async () => {
   assert.equal((await fetch(`${base}/api/nada`, { headers: auth })).status, 404);
 });

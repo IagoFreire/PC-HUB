@@ -9,5 +9,8 @@
     "agentPort": 7777,
     "touchPort": 7778,
     "agentSecret": "um-segredo-longo-com-pelo-menos-16-caracteres"
+  },
+  "ups": {
+    "url": "http://127.0.0.1:4470"
   }
 }

@@ -16,6 +16,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="trackpad.css">
+  <link rel="stylesheet" href="ups.css">
   <title>Aurora</title>
 </head>
 <body data-state="unknown">
@@ -47,11 +48,22 @@
         </svg>
         <span>Aurora</span>
       </div>
-      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Ajustes">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
-        </svg>
-      </button>
+      <div class="top-actions">
+        <button class="ups-chip" id="upsChip" type="button" aria-label="Nobreak" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <rect class="ups-chip-shell" x="2.5" y="7" width="17" height="10" rx="2.5" />
+            <path class="ups-chip-shell" d="M21.5 10.5v3" />
+            <rect class="ups-chip-fill" id="upsChipFill" x="4.5" y="9" width="13" height="6" rx="1" />
+            <path class="ups-chip-bolt" d="M11.8 8.2 8.6 12.4h2.7l-1 3.4 3.2-4.2h-2.7z" />
+          </svg>
+          <span id="upsChipText">—</span>
+        </button>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <section class="hero" aria-live="polite">
@@ -156,6 +168,49 @@
       <button class="cta" type="submit" id="gateSubmit">Entrar</button>
     </form>
   </div>
+
+  <!-- Nobreak (dados do Supervise) -->
+  <section class="ups-view" id="upsView" aria-label="Nobreak" data-tone="muted" hidden>
+    <header class="pad-head">
+      <button class="pad-back" id="upsBack" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        Aurora
+      </button>
+      <h2 class="pad-title">Nobreak</h2>
+      <span aria-hidden="true"></span>
+    </header>
+
+    <div class="ups-hero">
+      <div class="ups-gauge" id="upsGauge" data-level="unknown">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ups-gauge-track" cx="60" cy="60" r="52" />
+          <circle class="ups-gauge-arc" id="upsGaugeArc" cx="60" cy="60" r="52" />
+        </svg>
+        <div class="ups-gauge-center">
+          <span class="ups-gauge-value" id="upsCharge">—</span>
+          <span class="ups-gauge-label">bateria</span>
+        </div>
+      </div>
+      <div class="ups-summary">
+        <p class="eyebrow" id="upsName">Nobreak</p>
+        <p class="ups-mode" id="upsMode">Carregando…</p>
+        <p class="ups-alert" id="upsAlert">&nbsp;</p>
+      </div>
+    </div>
+
+    <dl class="ups-grid">
+      <div class="ups-tile"><dt>Entrada</dt><dd id="upsVIn">—</dd></div>
+      <div class="ups-tile"><dt>Saída</dt><dd id="upsVOut">—</dd></div>
+      <div class="ups-tile"><dt>Frequência</dt><dd id="upsFreq">—</dd></div>
+      <div class="ups-tile"><dt>Consumo</dt><dd id="upsLoad">—</dd><small id="upsLoadVA"></small></div>
+      <div class="ups-tile"><dt>Bateria</dt><dd id="upsVBat">—</dd></div>
+      <div class="ups-tile"><dt>Temperatura</dt><dd id="upsTemp">—</dd></div>
+      <div class="ups-tile"><dt>Corrente</dt><dd id="upsCurrent">—</dd></div>
+      <div class="ups-tile"><dt>Desligamento</dt><dd id="upsCountdown">—</dd></div>
+    </dl>
+
+    <p class="ups-foot" id="upsFoot">&nbsp;</p>
+  </section>
 
   <!-- Trackpad e teclado -->
   <section class="pad-view" id="padView" aria-label="Trackpad" hidden>
