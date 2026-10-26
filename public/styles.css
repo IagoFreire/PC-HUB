@@ -36,6 +36,12 @@
 *::before,
 *::after { box-sizing: border-box; }
 
+/* O halo do orbe é mais largo que telas de celular; clip corta sem criar rolagem lateral. */
+html,
+body {
+  overflow-x: clip;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   background: var(--bg);
@@ -165,6 +171,7 @@ button { font: inherit; color: inherit; }
   min-height: 100dvh;
   max-width: 460px;
   margin: 0 auto;
+  overflow-x: clip;
   /* Folga extra no topo: no iOS 26 o sistema desfoca uma faixa logo abaixo da status bar. */
   padding:
     calc(env(safe-area-inset-top, 0px) + 26px)
