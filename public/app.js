@@ -79,6 +79,11 @@ async function api(path, { method = 'GET', body, token = session.token } = {}) {
   }
 
   const data = await res.json().catch(() => ({}));
+  // Página antiga aberta em http depois que o servidor passou a HTTPS: vai para o endereço novo.
+  if (res.status === 426 && typeof data.location === 'string' && data.location.startsWith('https://')) {
+    window.location.replace(data.location);
+    throw new NetworkError('Mudando para o endereço seguro…');
+  }
   // O código HTTP vai junto no erro (ex.: o painel do nobreak se esconde num 404).
   const fail = (ErrorType, message) => Object.assign(new ErrorType(message), { status: res.status });
   if (res.status === 401) throw fail(AuthError, data.error || 'Código de acesso incorreto.');

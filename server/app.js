@@ -9,6 +9,7 @@ import { acceptWebSocket } from './websocket.js';
 const MAX_BODY_BYTES = 1024;
 
 const MAX_TOUCH_CLIENTS = 8;
+const TLS_WARN_INTERVAL_MS = 60_000;
 // Conexões que ainda não mandaram o código: poucas por IP, para ninguém esgotar as vagas do celular.
 const MAX_PENDING_TOUCH_PER_IP = 2;
 const SAFE_HOST_RE = /^[a-z0-9.\-:[\]]+$/i;
@@ -147,6 +148,20 @@ export function createApp({ config, monitor, publicDir, touch = null, ups = null
     });
   };
   const server = tls ? https.createServer(tls, onRequest) : http.createServer(onRequest);
+
+  // Aparelho que não confia na CA local derruba o handshake TLS sem chegar a fazer requisição:
+  // sem este log, do lado do servidor isso é invisível. Um aviso por IP a cada minuto.
+  const tlsWarnedAt = new Map();
+  server.on('tlsClientError', (err, socket) => {
+    const client = socket.remoteAddress ?? 'desconhecido';
+    const at = Date.now();
+    if (at - (tlsWarnedAt.get(client) ?? 0) < TLS_WARN_INTERVAL_MS) return;
+    tlsWarnedAt.set(client, at);
+    const untrusted = /unknown ca|bad certificate|certificate unknown/i.test(err.message);
+    log(untrusted
+      ? `HTTPS recusado por ${client}: o aparelho NÃO confia no certificado. Instale o perfil (aurora-ca.cer) e ative a confiança.`
+      : `falha de TLS com ${client}: ${err.message}`);
+  });
 
   let touchClients = 0;
   const pendingByIp = new Map();

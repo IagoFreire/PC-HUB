@@ -54,6 +54,10 @@ const WARNINGS = Object.freeze([
   ['noVInput', 'Sem energia da rede'],
 ]);
 
+// O nobreak não mede watts: estimamos com V × I × fator de potência. Fontes de PC com PFC ativo
+// (praticamente toda fonte 80 Plus) ficam perto de 0,95. Ajustável em config.ups.powerFactor.
+export const DEFAULT_POWER_FACTOR = 0.95;
+
 const num = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 const fixed = (value, digits) => (value === null ? null : Number(value.toFixed(digits)));
 
@@ -76,7 +80,7 @@ function alertOf(mode, status, failures) {
 }
 
 /** Converte o "device" do Supervise num retrato simples para o app. */
-export function describeUps(device) {
+export function describeUps(device, { powerFactor = DEFAULT_POWER_FACTOR } = {}) {
   const status = device?.status ?? {};
   const failures = device?.failures ?? {};
   const vars = device?.vars ?? {};
@@ -85,6 +89,10 @@ export function describeUps(device) {
   const nominalVA = num(vars.nominalPOutput);
   const charge = num(vars.cBattery);
   const countdown = num(device?.regressive?.value);
+  const vOutput = num(vars.vOutput);
+  const iOutput = num(vars.iOutput);
+  // Potência aparente medida (V × I) e a real estimada com o fator de potência.
+  const apparentVA = vOutput !== null && iOutput !== null ? vOutput * iOutput : null;
 
   return {
     available: true,
@@ -99,6 +107,9 @@ export function describeUps(device) {
       loadPercent: loadPercent === null ? null : Math.round(loadPercent),
       loadVA: loadPercent !== null && nominalVA !== null ? Math.round((nominalVA * loadPercent) / 100) : null,
       nominalVA,
+      apparentVA: apparentVA === null ? null : Math.round(apparentVA),
+      watts: apparentVA === null ? null : Math.round(apparentVA * powerFactor),
+      powerFactor,
     },
     battery: {
       voltage: fixed(num(vars.vBattery), 1),
@@ -168,7 +179,7 @@ export function describeEvents(logs, currentMode = null) {
   };
 }
 
-export function createUpsMonitor({ url, id = null, fetchImpl = fetch, now = Date.now }) {
+export function createUpsMonitor({ url, id = null, powerFactor = DEFAULT_POWER_FACTOR, fetchImpl = fetch, now = Date.now }) {
   let deviceId = id;
   let snapshot = null;
   let inflight = null;
@@ -199,7 +210,7 @@ export function createUpsMonitor({ url, id = null, fetchImpl = fetch, now = Date
     try {
       const target = await resolveDeviceId();
       const { device } = await getJson(`${API_PATH}/${encodeURIComponent(target)}`);
-      snapshot = { ...describeUps(device), checkedAt };
+      snapshot = { ...describeUps(device, { powerFactor }), checkedAt };
     } catch (err) {
       snapshot = {
         available: false,

@@ -140,9 +140,11 @@ Configure no `config.json`:
 ```jsonc
 "ups": {
   "url": "http://127.0.0.1:4470",   // endereço do Supervise (127.0.0.1 se ele roda no mesmo notebook do Aurora)
-  "id": "0001521C0A"                 // opcional: sem ele, usa o primeiro nobreak do Supervise
+  "id": "0001521C0A",                // opcional: sem ele, usa o primeiro nobreak do Supervise
+  "powerFactor": 0.95                // opcional: fator de potência usado para estimar os watts
 }
 ```
+**Consumo em watts:** o nobreak não mede watts — só tensão e corrente da saída. O Aurora calcula a potência aparente (V × A = VA, medida) e estima os watts com o fator de potência: **0,95** por padrão, o típico de fontes de PC com PFC ativo (80 Plus). Para calibrar, compare com uma tomada medidora de energia e ajuste `powerFactor`.
 O Aurora só **lê** os dados — nunca usa os comandos de shutdown do Supervise. O nome mostrado é o que está cadastrado no Supervise.
 
 ## HTTPS (necessário para o air mouse)
@@ -158,6 +160,8 @@ O iPhone só entrega os sensores de movimento a páginas HTTPS. O Aurora usa uma
 3. **Ajustes → Perfil Baixado → Instalar.** (Confira se a impressão digital SHA-256 bate com a que o script mostrou.)
 4. **Ajustes → Geral → Sobre → Ajustes de Confiança de Certificados** → ligue **Aurora Local CA**.
 5. Abra `https://<ip-do-notebook>:8443`, entre com o código e **adicione à Tela de Início de novo** (remova o atalho antigo em `http://` — é outro endereço, por isso o código é pedido de novo).
+
+> **Cuidado ao copiar o `config.json` de outra máquina:** a seção `tls` (com a senha do certificado) só existe no config do notebook. Copiar outro por cima desliga o HTTPS — o servidor avisa no terminal. Prefira editar só a parte que mudou.
 
 Com HTTPS ligado, a porta `8080` só redireciona para o `https://…:8443` e serve o certificado. Se o IP do notebook mudar, rode o script de novo (e reinstale o perfil). O certificado do servidor vale 800 dias.
 

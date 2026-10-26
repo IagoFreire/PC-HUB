@@ -24,7 +24,11 @@ test('describeUps traduz os valores reais do Supervise', () => {
   assert.equal(ups.alert, null);
   assert.equal(ups.name, 'teste');
   assert.deepEqual(ups.input, { voltage: 123, nominalVoltage: 115 });
-  assert.deepEqual(ups.output, { voltage: 112.7, frequency: 59.5, current: 2.57, loadPercent: 22, loadVA: 264, nominalVA: 1200 });
+  // 112,665 V × 2,5704 A = 289,6 VA medidos; × 0,95 = 275 W estimados.
+  assert.deepEqual(ups.output, {
+    voltage: 112.7, frequency: 59.5, current: 2.57, loadPercent: 22, loadVA: 264, nominalVA: 1200,
+    apparentVA: 290, watts: 275, powerFactor: 0.95,
+  });
   assert.deepEqual(ups.battery, { voltage: 13.3, charge: 100 });
   assert.equal(ups.temperature, 54);
   assert.equal(ups.shutdownCountdownSec, null);
@@ -41,6 +45,16 @@ test('describeUps: na bateria vira aviso; falha tem prioridade e é crítica', (
 
   onBattery.failures = { overload: 1 };
   assert.deepEqual(describeUps(onBattery).alert, { level: 'critical', text: 'Sobrecarga na saída' });
+});
+
+test('describeUps usa o fator de potência configurado para estimar os watts', () => {
+  assert.equal(describeUps(realDevice(), { powerFactor: 0.6 }).output.watts, 174);
+  assert.equal(describeUps({ vars: { vOutput: 115 } }).output.watts, null);
+});
+
+test('describeUps usa o fator de potência configurado para estimar os watts', () => {
+  assert.equal(describeUps(realDevice(), { powerFactor: 0.6 }).output.watts, 174);
+  assert.equal(describeUps({ vars: { vOutput: 115 } }).output.watts, null);
 });
 
 test('describeUps: sem comunicação e valores ausentes não quebram', () => {

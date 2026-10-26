@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,5 +79,9 @@ server.listen(appPort, config.host, () => {
         console.log(`  certificado para o iPhone confiar: http://${address}:${config.port}${CA_DOWNLOAD_PATH}`);
       }
     });
+  } else if (existsSync(path.join(root, 'certs', 'aurora.pfx'))) {
+    // Acontece ao copiar o config.json de outra máquina por cima: some a seção "tls" (e a senha do .pfx).
+    console.warn('\n  ATENÇÃO: existe certs\\aurora.pfx, mas o config.json não tem a seção "tls" — o HTTPS (e o air mouse) está desligado.');
+    console.warn('  Rode de novo: powershell -ExecutionPolicy Bypass -File .\\tools\\make-cert.ps1  (e reinstale o perfil no iPhone)\n');
   }
 });

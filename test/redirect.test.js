@@ -20,6 +20,12 @@ test('redireciona qualquer página para o mesmo caminho em HTTPS', async () => {
   assert.equal(res.headers.get('location'), 'https://127.0.0.1:8443/trackpad?x=1');
 });
 
+test('chamada de API em http recebe 426 com o endereço HTTPS (em vez de 301, que quebraria o fetch)', async () => {
+  const res = await fetch(`${base}/api/status`, { redirect: 'manual' });
+  assert.equal(res.status, 426);
+  assert.deepEqual(await res.json(), { error: 'O Aurora agora usa HTTPS.', location: 'https://127.0.0.1:8443/' });
+});
+
 test('entrega a CA local como perfil para o iPhone instalar', async () => {
   const res = await fetch(`${base}${CA_DOWNLOAD_PATH}`);
   assert.equal(res.status, 200);

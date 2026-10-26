@@ -34,7 +34,22 @@ export function createRedirectServer({ httpsPort, caCert = null }) {
       res.end('Host inválido.');
       return;
     }
-    res.writeHead(301, { Location: `https://${hostname}:${httpsPort}${req.url}` });
+    const location = `https://${hostname}:${httpsPort}${req.url}`;
+    // Página antiga ainda aberta em http: um 301 na API vira erro de CORS ("Sem conexão") no fetch.
+    // Responde 426 com o endereço novo, para o app recarregar a página inteira em HTTPS.
+    if (pathname.startsWith('/api/')) {
+      const body = JSON.stringify({ error: 'O Aurora agora usa HTTPS.', location: `https://${hostname}:${httpsPort}/` });
+      res.writeHead(426, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(body),
+        'Cache-Control': 'no-store',
+        Upgrade: 'TLS/1.2, HTTP/1.1',
+        Connection: 'Upgrade',
+      });
+      res.end(body);
+      return;
+    }
+    res.writeHead(301, { Location: location });
     res.end();
   });
 }

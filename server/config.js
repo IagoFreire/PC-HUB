@@ -41,6 +41,8 @@ function validateTls(tls, httpPort, errors) {
 }
 
 const UPS_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const DEFAULT_POWER_FACTOR = 0.95;
+const MIN_POWER_FACTOR = 0.3;
 
 /** Nobreak via Supervise (Ragtech) é opcional. */
 function validateUps(ups, errors) {
@@ -57,7 +59,11 @@ function validateUps(ups, errors) {
   if (ups.id !== undefined && ups.id !== null && !(typeof ups.id === 'string' && UPS_ID_RE.test(ups.id))) {
     errors.push('ups.id precisa ser o id do nobreak no Supervise (ex: 0001521C0A)');
   }
-  return Object.freeze({ url: url?.origin ?? null, id: ups.id ?? null });
+  const powerFactor = ups.powerFactor ?? DEFAULT_POWER_FACTOR;
+  if (typeof powerFactor !== 'number' || !(powerFactor >= MIN_POWER_FACTOR && powerFactor <= 1)) {
+    errors.push(`ups.powerFactor precisa ser um número entre ${MIN_POWER_FACTOR} e 1 (fontes de PC modernas: ~0.95)`);
+  }
+  return Object.freeze({ url: url?.origin ?? null, id: ups.id ?? null, powerFactor });
 }
 
 export function validateConfig(raw) {

@@ -62,9 +62,13 @@ test('validateConfig recusa tls incompleto ou na mesma porta do http', () => {
 
 test('validateConfig aceita ups opcional e normaliza a url', () => {
   const config = validateConfig({ ...validRaw(), ups: { url: 'http://192.168.0.7:4470/qualquer', id: '0001521C0A' } });
-  assert.deepEqual({ ...config.ups }, { url: 'http://192.168.0.7:4470', id: '0001521C0A' });
+  assert.deepEqual({ ...config.ups }, { url: 'http://192.168.0.7:4470', id: '0001521C0A', powerFactor: 0.95 });
   assert.equal(validateConfig(validRaw()).ups, null);
-  assert.throws(() => validateConfig({ ...validRaw(), ups: { url: 'file:///c:/x', id: '../x' } }), /ups\.url[\s\S]*ups\.id/);
+  assert.throws(
+    () => validateConfig({ ...validRaw(), ups: { url: 'file:///c:/x', id: '../x', powerFactor: 2 } }),
+    /ups\.url[\s\S]*ups\.id[\s\S]*ups\.powerFactor/,
+  );
+  assert.equal(validateConfig({ ...validRaw(), ups: { url: 'http://x:4470', powerFactor: 0.7 } }).ups.powerFactor, 0.7);
 });
 
 test('validateConfig lista todos os problemas de uma vez', () => {
